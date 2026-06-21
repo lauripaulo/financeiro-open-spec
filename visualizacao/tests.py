@@ -8,7 +8,34 @@ from django.utils import timezone
 from contas.models import Conta
 from lancamentos.models import Lancamento
 from meses.services import criar_mes, transferir_pendente_para_mes
+from visualizacao.templatetags.moeda import moeda
 from visualizacao.views import _filtros_mes
+
+
+class MoedaFilterTests(TestCase):
+    def test_valor_simples(self):
+        self.assertEqual(moeda(Decimal("256432.11")), "R$ 256.432,11")
+
+    def test_valor_sem_decimais(self):
+        self.assertEqual(moeda(Decimal("100")), "R$ 100,00")
+
+    def test_valor_pequeno(self):
+        self.assertEqual(moeda(Decimal("9.5")), "R$ 9,50")
+
+    def test_none_retorna_zero(self):
+        self.assertEqual(moeda(None), "R$ 0,00")
+
+    def test_string_vazia_retorna_zero(self):
+        self.assertEqual(moeda(""), "R$ 0,00")
+
+    def test_valor_negativo(self):
+        self.assertEqual(moeda(Decimal("-1234.56")), "-R$ 1.234,56")
+
+    def test_valor_milhoes(self):
+        self.assertEqual(moeda(Decimal("1234567.89")), "R$ 1.234.567,89")
+
+    def test_valor_invalido_retorna_vazio(self):
+        self.assertEqual(moeda("abc"), "")
 
 
 class FiltrosMesTests(TestCase):
@@ -196,6 +223,40 @@ class VisaoConsolidadaTests(TestCase):
         response = self.client.get(self.url, {"ano": "2026", "mes": "4"})
         self.assertEqual(response.context["total_entradas"], Decimal("1000.00"))
         self.assertEqual(response.context["total_saidas"], Decimal("300.00"))
+
+    def test_totais_exibidos_no_padrao_brasileiro(self):
+        Lancamento.objects.create(
+            descricao="Salario",
+            tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
+            data_vencimento=date(2026, 4, 5),
+            valor=Decimal("1234.56"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        response = self.client.get(self.url, {"ano": "2026", "mes": "4"})
+        self.assertContains(response, "R$ 1.234,56")
+
+
+class VisaoPatrimonioTests(TestCase):
+    def test_exibe_saldo_no_padrao_brasileiro(self):
+        conta = Conta.objects.create(
+            nome="Investimento Teste",
+            tipo=Conta.Tipo.INVESTIMENTO,
+            saldo_atual=Decimal("0.00"),
+        )
+        Lancamento.objects.create(
+            descricao="Aporte",
+            tipo=Lancamento.Tipo.APORTE,
+            data_vencimento=date(2026, 4, 10),
+            valor=Decimal("1234.56"),
+            conta=conta,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        response = self.client.get(reverse("visualizacao:patrimonio"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "R$ 1.234,56")
 
 
 class TransferirPendenteTests(TestCase):

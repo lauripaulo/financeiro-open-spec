@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load moeda %}
 
 {% block title %}Comparativo{% endblock %}
 
@@ -28,9 +29,9 @@
             {% for linha in linhas %}
             <tr>
                 <td>{{ linha.conta.nome }}</td>
-                <td>R$ {{ linha.saldo_a }}</td>
-                <td>R$ {{ linha.saldo_b }}</td>
-                <td>R$ {{ linha.variacao }}</td>
+                <td>{{ linha.saldo_a|moeda }}</td>
+                <td>{{ linha.saldo_b|moeda }}</td>
+                <td>{{ linha.variacao|moeda }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="4">Sem dados para comparar.</td></tr>
