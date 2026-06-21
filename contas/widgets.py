@@ -26,7 +26,7 @@ class MoedaWidget(forms.TextInput):
             return ""
         try:
             valor = Decimal(value)
-        except Exception:
+        except (ArithmeticError, TypeError, ValueError):
             return value
 
         negativo = valor < 0
