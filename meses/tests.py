@@ -159,11 +159,13 @@ class MesesServicesTests(TestCase):
         self.assertEqual(pendentes.count(), 1)
 
     def test_elegivel_para_transferencia_aceita_pendente_do_mes_anterior(self):
+        from django.utils import timezone
+
         criar_mes(2026, 4)
         pendente = Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date.today() - timedelta(days=3),
+            data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
             competencia_ano=2026,
