@@ -194,7 +194,8 @@ def transferir_pendente(request, pk):
 
 @require_http_methods(["POST"])
 def manter_pendente(request, pk):
-    Lancamento.objects.filter(pk=pk).exists()
+    if not Lancamento.objects.filter(pk=pk).exists():
+        return HttpResponseBadRequest("Lancamento nao encontrado.")
     return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento mantido no mes anterior."})
 
 
