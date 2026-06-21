@@ -32,9 +32,19 @@ class LancamentoQuerySet(models.QuerySet):
     def com_status_in(self, status_list):
         if not status_list:
             return self
-        condicoes = models.Q()
-        for status in status_list:
-            condicoes |= models.Q(pk__in=self.com_status(status).values_list("pk", flat=True))
+
+        hoje = timezone.localdate()
+        condicoes = models.Q(pk__in=[])
+        for status in {s.upper() for s in status_list}:
+            if status == Lancamento.Status.PAGO:
+                condicoes |= models.Q(data_pagamento__isnull=False)
+            elif status == Lancamento.Status.PREVISTO:
+                condicoes |= models.Q(data_pagamento__isnull=True, data_vencimento__gte=hoje)
+            elif status == Lancamento.Status.PENDENTE:
+                condicoes |= models.Q(data_pagamento__isnull=True, data_vencimento__lt=hoje)
+            else:
+                raise ValueError(f"Status invalido: {status}")
+
         return self.filter(condicoes)
 
 
