@@ -21,8 +21,15 @@ from meses.services import (
 
 def _filtros_mes(request):
     hoje = date.today()
-    ano = int(request.POST.get("ano") or request.GET.get("ano", hoje.year))
-    mes = int(request.POST.get("mes") or request.GET.get("mes", hoje.month))
+    try:
+        ano = int(request.POST.get("ano") or request.GET.get("ano", hoje.year))
+        mes = int(request.POST.get("mes") or request.GET.get("mes", hoje.month))
+    except (TypeError, ValueError):
+        return hoje.year, hoje.month
+
+    if not 1 <= mes <= 12:
+        return hoje.year, hoje.month
+
     return ano, mes
 
 
