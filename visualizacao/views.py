@@ -71,9 +71,9 @@ def visao_consolidada(request):
     saidas = Decimal("0.00")
     for item in lancamentos_lista:
         if item.direcao == "ENTRADA":
-            entradas += item.valor
+            entradas += item.valor_absoluto
         else:
-            saidas += item.valor
+            saidas += item.valor_absoluto
 
     saldo_total = Decimal("0.00")
     contas_ajuste = []
