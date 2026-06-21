@@ -47,8 +47,14 @@
         wrapWithPrefix(input);
 
         input.addEventListener("input", function () {
-            var digits = digitsOnly(input.value);
-            input.value = digits === "" ? "" : formatFromDigits(digits);
+            var raw = (input.value || "").trim();
+            var negative = raw.startsWith("-");
+            var digits = digitsOnly(raw);
+            if (digits === "") {
+                input.value = negative ? "-" : "";
+                return;
+            }
+            input.value = (negative ? "-" : "") + formatFromDigits(digits);
         });
 
         var form = input.closest("form");
