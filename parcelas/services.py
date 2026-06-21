@@ -30,15 +30,19 @@ def gerar_parcelas_da_compra(*, descricao, valor_total, total_parcelas, conta, d
         data_compra=data_compra,
     )
 
-    valor_parcela = (Decimal(valor_total) / Decimal(total_parcelas)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    valor_total = Decimal(valor_total)
+    total_parcelas = int(total_parcelas)
+    valor_parcela = (valor_total / Decimal(total_parcelas)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    valor_ultima_parcela = (valor_total - (valor_parcela * (total_parcelas - 1))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     for indice in range(total_parcelas):
         ano, mes = _mes_seguinte(data_compra, indice + 1)
+        valor = valor_parcela if indice < (total_parcelas - 1) else valor_ultima_parcela
         Lancamento.objects.create(
             descricao=f"{descricao} {indice + 1}/{total_parcelas}",
             tipo=Lancamento.Tipo.PARCELA_CARTAO,
             data_vencimento=_data_vencimento_segura(ano, mes, conta.dia_vencimento),
-            valor=valor_parcela,
+            valor=valor,
             conta=conta,
             competencia_ano=ano,
             competencia_mes=mes,
