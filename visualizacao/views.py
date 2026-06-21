@@ -205,8 +205,18 @@ def ajustar_saldo(request, conta_id):
     novo_saldo = request.POST.get("novo_saldo")
     if novo_saldo is None:
         return HttpResponseBadRequest("Campo novo_saldo e obrigatorio.")
-    conta = Conta.objects.get(pk=conta_id)
-    _, conciliacao = ajustar_saldo_inicial(conta, ano, mes, Decimal(novo_saldo))
+
+    try:
+        conta = Conta.objects.get(pk=conta_id)
+    except Conta.DoesNotExist:
+        return HttpResponseBadRequest("Conta nao encontrada.")
+
+    try:
+        saldo_decimal = Decimal(novo_saldo)
+    except Exception:
+        return HttpResponseBadRequest("Campo novo_saldo deve ser um decimal valido.")
+
+    _, conciliacao = ajustar_saldo_inicial(conta, ano, mes, saldo_decimal)
     mensagem = "Saldo inicial atualizado."
     if conciliacao:
         mensagem += " Lancamento de Conciliacao gerado automaticamente."
