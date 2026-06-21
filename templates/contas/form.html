@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{% if conta %}Editar conta{% else %}Nova conta{% endif %}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>{% if conta %}Editar conta{% else %}Nova conta{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Salvar</button>
+    </form>
+</section>
+{% endblock %}

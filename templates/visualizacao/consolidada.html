@@ -56,7 +56,11 @@
     <h3>Totais</h3>
     <p>Entradas: R$ {{ total_entradas }}</p>
     <p>Saidas: R$ {{ total_saidas }}</p>
+    {% if conta_selecionada_obj %}
+    <p><strong>Saldo da conta {{ conta_selecionada_obj.nome }}: R$ {{ saldo_total }}</strong></p>
+    {% else %}
     <p><strong>Saldo consolidado: R$ {{ saldo_total }}</strong></p>
+    {% endif %}
 </section>
 
 <section class="card">

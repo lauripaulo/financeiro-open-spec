@@ -1,12 +1,22 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
 from meses.models import SaldoMensalConta
-from meses.services import ajustar_saldo_inicial, criar_mes, excluir_serie_futura, saldo_do_mes, atualizar_serie_futura
+from meses.services import (
+    ajustar_saldo_inicial,
+    criar_mes,
+    elegivel_para_transferencia,
+    excluir_serie_futura,
+    saldo_do_mes,
+    atualizar_serie_futura,
+    transferir_pendente_para_mes,
+)
 
 
 class MesesServicesTests(TestCase):
@@ -139,7 +149,7 @@ class MesesServicesTests(TestCase):
         Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date.today() - timedelta(days=3),
+            data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
             competencia_ano=2026,
@@ -148,3 +158,53 @@ class MesesServicesTests(TestCase):
 
         _, _, pendentes, _ = criar_mes(2026, 5)
         self.assertEqual(pendentes.count(), 1)
+
+    def test_elegivel_para_transferencia_aceita_pendente_do_mes_anterior(self):
+        criar_mes(2026, 4)
+        pendente = Lancamento.objects.create(
+            descricao="Conta atrasada",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=timezone.localdate() - timedelta(days=3),
+            valor=Decimal("50.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        self.assertTrue(elegivel_para_transferencia(pendente, 2026, 5))
+
+    def test_elegivel_para_transferencia_rejeita_mes_nao_imediatamente_anterior(self):
+        pendente = Lancamento.objects.create(
+            descricao="Conta antiga",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=timezone.localdate() - timedelta(days=3),
+            valor=Decimal("50.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=2,
+        )
+        self.assertFalse(elegivel_para_transferencia(pendente, 2026, 5))
+
+    def test_elegivel_para_transferencia_rejeita_lancamento_nao_pendente(self):
+        previsto = Lancamento.objects.create(
+            descricao="Conta futura",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=timezone.localdate() + timedelta(days=3),
+            valor=Decimal("50.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        self.assertFalse(elegivel_para_transferencia(previsto, 2026, 5))
+
+    def test_transferir_pendente_nao_elegivel_levanta_erro(self):
+        nao_elegivel = Lancamento.objects.create(
+            descricao="Conta antiga",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=timezone.localdate() - timedelta(days=3),
+            valor=Decimal("50.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=2,
+        )
+        with self.assertRaises(ValidationError):
+            transferir_pendente_para_mes(nao_elegivel, 2026, 5)

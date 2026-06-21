@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Resolver pendentes{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Mes {{ mes }}/{{ ano }} criado</h2>
+    <p>Antes de continuar, decida o que fazer com cada lancamento pendente do mes anterior.</p>
+</section>
+
+{# flash-area ja existe em base.html #}
+
+<section class="card">
+    <h3>Pendentes do mes anterior</h3>
+    {% if pendentes %}
+        <ul>
+        {% for item in pendentes %}
+            <li>
+                {{ item.descricao }} - {{ item.conta.nome }}
+                <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="inline" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit">Transferir para o novo mes</button>
+                </form>
+                <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="inline" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary">Manter no mes anterior</button>
+                </form>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Sem pendencias do mes anterior.</p>
+    {% endif %}
+    <a href="?ano={{ ano }}&mes={{ mes }}">Atualizar lista</a>
+</section>
+
+<section class="card">
+    <a href="/?ano={{ ano }}&mes={{ mes }}">Concluir abertura e ir para a visao consolidada</a>
+</section>
+{% endblock %}
