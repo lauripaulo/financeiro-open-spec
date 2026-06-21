@@ -13,7 +13,7 @@ Na tela de Visao consolidada, a tabela de Movimentacoes (a informacao mais consu
 - *(none)*
 
 ### Modified Capabilities
-- `visualizacao`: formalizar a ordem de apresentacao das sessões na tela principal.
+- `visualizacao`: formalizar a ordem de apresentacao das secoes na tela principal.
 
 ## Impact
 
