@@ -203,7 +203,7 @@ def manter_pendente(request, pk):
 def ajustar_saldo(request, conta_id):
     ano, mes = _filtros_mes(request)
     novo_saldo = request.POST.get("novo_saldo")
-    if novo_saldo is None:
+    if not novo_saldo:
         return HttpResponseBadRequest("Campo novo_saldo e obrigatorio.")
 
     try:

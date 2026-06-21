@@ -230,6 +230,11 @@ class AjustarSaldoTests(TestCase):
         response = self.client.post(url, {"novo_saldo": "abc", "ano": "2026", "mes": "4"})
         self.assertEqual(response.status_code, 400)
 
+    def test_campo_vazio_retorna_400(self):
+        url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
+        response = self.client.post(url, {"novo_saldo": "", "ano": "2026", "mes": "4"})
+        self.assertEqual(response.status_code, 400)
+
     def test_conta_inexistente_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[99999])
         response = self.client.post(url, {"novo_saldo": "100.00", "ano": "2026", "mes": "4"})
