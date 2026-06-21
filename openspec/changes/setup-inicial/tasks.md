@@ -39,7 +39,7 @@
 ## 6. App `visualizacao`
 - [ ] 6.1 Visão de conta
 - [ ] 6.2 Visão consolidada (Banco + Cartão)
-- [ ] 6.3 Visão de patrimônio (Investimento)
+- [ ] 6.3 Visão de patrimonio (Investimento)
 - [ ] 6.4 Navegação entre meses (seletor + anterior/próximo)
 - [ ] 6.5 Confirmação ao editar mês encerrado
 - [ ] 6.6 Comparativo entre meses (padrão: atual vs. anterior)

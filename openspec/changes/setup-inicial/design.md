@@ -6,7 +6,8 @@
 
 ## Stack
 
-- **Backend:** Python + Django.
+- **Backend:** Python + Django. Com o objetivo de usar sempre funcionalidades do
+  django em vez de bibliotecas externas.
 - **Banco de dados:** SQLite para uso pessoal/familiar (baixo volume de escrita, sem
   concorrência pesada). Migrar para Postgres só se houver uso simultâneo frequente
   por múltiplas pessoas ou necessidade de relatórios mais pesados.
@@ -21,13 +22,13 @@
 As fronteiras de domínio definidas em `specs/` mapeiam quase 1:1 para apps Django,
 o que mantém a separação de responsabilidades clara desde o início:
 
-| App             | Responsabilidade                                              |
-|------------------|----------------------------------------------------------------|
-| `contas`         | Cadastro de contas (Cartão, Banco, Investimento) e seus campos |
-| `lancamentos`     | Entradas/saídas, tipos, cálculo de status                      |
-| `parcelas`       | Geração de lançamentos de compra parcelada                     |
-| `meses`           | Criação de mês, propagação, saldo, pendências                  |
-| `visualizacao`   | Visão de conta, Visão consolidada, visão de patrimônio, comparativo |
+| App            | Responsabilidade                                                    |
+| -------------- | ------------------------------------------------------------------- |
+| `contas`       | Cadastro de contas (Cartão, Banco, Investimento) e seus campos      |
+| `lancamentos`  | Entradas/saídas, tipos, cálculo de status                           |
+| `parcelas`     | Geração de lançamentos de compra parcelada                          |
+| `meses`        | Criação de mês, propagação, saldo, pendências                       |
+| `visualizacao` | Visão de conta, Visão consolidada, visão de patrimônio, comparativo |
 
 ## Pontos de complexidade
 
