@@ -34,9 +34,13 @@
 
     function maskedToPlainDecimal(masked) {
         if (!masked) return "";
-        var cleaned = masked.replace(/\./g, "").replace(",", ".");
-        var parsed = parseFloat(cleaned);
-        return isNaN(parsed) ? "" : parsed.toFixed(2);
+        var negative = masked.trim().startsWith("-");
+        var digits = digitsOnly(masked);
+        if (digits === "") return "";
+        while (digits.length < 3) digits = "0" + digits;
+        var decimal = digits.slice(-2);
+        var inteiro = digits.slice(0, -2).replace(/^0+(?=\d)/, "") || "0";
+        return (negative ? "-" : "") + inteiro + "." + decimal;
     }
 
     function attachMask(input) {
