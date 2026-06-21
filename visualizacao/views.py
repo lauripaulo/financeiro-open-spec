@@ -184,7 +184,10 @@ def comparativo_meses(request):
 @require_http_methods(["POST"])
 def transferir_pendente(request, pk):
     ano, mes = _filtros_mes(request)
-    lancamento = Lancamento.objects.get(pk=pk)
+    try:
+        lancamento = Lancamento.objects.get(pk=pk)
+    except Lancamento.DoesNotExist:
+        return HttpResponseBadRequest("Lancamento nao encontrado.")
     transferir_pendente_para_mes(lancamento, ano, mes)
     return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento transferido para o mes atual."})
 
