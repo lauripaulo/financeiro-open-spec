@@ -356,11 +356,13 @@ class CriarMesViewTests(TestCase):
         self.assertIn("mes=5", response["Location"])
 
     def test_cria_mes_com_pendentes_redireciona_para_resolucao(self):
+        from django.utils import timezone
+
         criar_mes(2026, 4)
         Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date.today() - timedelta(days=3),
+            data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
             competencia_ano=2026,
