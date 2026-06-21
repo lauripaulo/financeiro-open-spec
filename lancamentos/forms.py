@@ -1,6 +1,7 @@
 from django import forms
 
 from contas.models import Conta
+from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
 from parcelas.services import gerar_parcelas_da_compra
 
@@ -9,6 +10,9 @@ class LancamentoForm(forms.ModelForm):
     class Meta:
         model = Lancamento
         fields = ["descricao", "tipo", "data_vencimento", "valor", "conta"]
+        widgets = {
+            "valor": MoedaWidget(),
+        }
 
     TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL = {
         Lancamento.Tipo.CONCILIACAO,
@@ -55,7 +59,7 @@ class MarcarPagoForm(forms.Form):
 
 class CompraParceladaForm(forms.Form):
     descricao = forms.CharField(max_length=180)
-    valor_total = forms.DecimalField(max_digits=14, decimal_places=2)
+    valor_total = forms.DecimalField(max_digits=14, decimal_places=2, widget=MoedaWidget())
     total_parcelas = forms.IntegerField(min_value=2, max_value=120)
     conta = forms.ModelChoiceField(queryset=Conta.objects.filter(tipo=Conta.Tipo.CARTAO).order_by("nome"))
     data_compra = forms.DateField()

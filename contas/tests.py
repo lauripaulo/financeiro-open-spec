@@ -5,7 +5,22 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contas.models import Conta
+from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
+
+
+class MoedaWidgetTests(TestCase):
+    def test_formata_valor_decimal(self):
+        widget = MoedaWidget()
+        self.assertEqual(widget.format_value(Decimal("256432.11")), "256.432,11")
+
+    def test_valor_none_retorna_vazio(self):
+        widget = MoedaWidget()
+        self.assertEqual(widget.format_value(None), "")
+
+    def test_valor_vazio_retorna_vazio(self):
+        widget = MoedaWidget()
+        self.assertEqual(widget.format_value(""), "")
 
 
 class ContaModelTests(TestCase):
@@ -56,6 +71,17 @@ class ContaViewTests(TestCase):
         response = self.client.get(reverse("contas:listar"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Banco Lista")
+
+    def test_listar_contas_exibe_saldo_no_padrao_brasileiro(self):
+        Conta.objects.create(
+            nome="Banco Formatado",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("1234.56"),
+            limite_negativo=Decimal("500.00"),
+        )
+        response = self.client.get(reverse("contas:listar"))
+        self.assertContains(response, "R$ 1.234,56")
+        self.assertContains(response, "R$ 500,00")
 
     def test_criar_conta_banco(self):
         url = reverse("contas:criar")

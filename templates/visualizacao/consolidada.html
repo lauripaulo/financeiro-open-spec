@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load moeda %}
 
 {% block title %}Visao consolidada{% endblock %}
 
@@ -74,8 +75,8 @@
         {% for item in lancamentos %}
             <tr>
                 <td>{{ item.descricao }}</td>
-                <td>{% if item.direcao == "ENTRADA" %}+{{ item.valor_absoluto }}{% endif %}</td>
-                <td>{% if item.direcao == "SAIDA" %}-{{ item.valor_absoluto }}{% endif %}</td>
+                <td>{% if item.direcao == "ENTRADA" %}+{{ item.valor_absoluto|moeda }}{% endif %}</td>
+                <td>{% if item.direcao == "SAIDA" %}-{{ item.valor_absoluto|moeda }}{% endif %}</td>
                 <td>{{ item.conta.nome }}</td>
                 <td>{{ item.data_vencimento|date:"d/m/Y" }}</td>
                 <td><span class="status {{ item.status }}">{{ item.get_status_display }}</span></td>
@@ -103,12 +104,12 @@
 
 <section class="card">
     <h3>Totais</h3>
-    <p>Entradas: R$ {{ total_entradas }}</p>
-    <p>Saidas: R$ {{ total_saidas }}</p>
+    <p>Entradas: {{ total_entradas|moeda }}</p>
+    <p>Saidas: {{ total_saidas|moeda }}</p>
     {% if conta_selecionada_obj %}
-    <p><strong>Saldo da conta {{ conta_selecionada_obj.nome }}: R$ {{ saldo_total }}</strong></p>
+    <p><strong>Saldo da conta {{ conta_selecionada_obj.nome }}: {{ saldo_total|moeda }}</strong></p>
     {% else %}
-    <p><strong>Saldo consolidado: R$ {{ saldo_total }}</strong></p>
+    <p><strong>Saldo consolidado: {{ saldo_total|moeda }}</strong></p>
     {% endif %}
 </section>
 
