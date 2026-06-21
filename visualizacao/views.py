@@ -201,7 +201,10 @@ def transferir_pendente(request, pk):
     try:
         transferir_pendente_para_mes(lancamento, ano, mes)
     except ValidationError as exc:
-        return HttpResponseBadRequest(" ".join(exc.messages))
+        mensagem = " ".join(exc.messages)
+        if request.headers.get("HX-Request"):
+            return render(request, "visualizacao/_flash.html", {"mensagem": mensagem})
+        return HttpResponseBadRequest(mensagem)
     return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento transferido para o mes atual."})
 
 
