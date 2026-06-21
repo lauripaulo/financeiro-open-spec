@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Compra parcelada{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Nova compra parcelada</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Gerar parcelas</button>
+    </form>
+</section>
+{% endblock %}

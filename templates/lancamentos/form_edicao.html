@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Editar lancamento{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Editar lancamento</h2>
+    {% if encerrado %}
+    <div class="alert warn">Voce realmente quer editar um mes ja encerrado?</div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        {% if encerrado %}
+        <label>
+            <input type="checkbox" name="confirmar_edicao_mes_encerrado" value="1" required>
+            Confirmo a edicao de mes encerrado
+        </label>
+        {% endif %}
+        <button type="submit">Salvar alteracoes</button>
+    </form>
+</section>
+{% endblock %}
