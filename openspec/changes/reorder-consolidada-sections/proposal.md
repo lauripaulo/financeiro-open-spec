@@ -4,7 +4,7 @@ Na tela de Visao consolidada, a tabela de Movimentacoes (a informacao mais consu
 
 ## What Changes
 
-- Reordenar as sessões da tela de Visao consolidada para que Movimentacoes apareca imediatamente apos Filtros, seguida de Totais, Pendentes do mes anterior e, por ultimo, Ajustar saldo inicial.
+- Reordenar as secoes da tela de Visao consolidada para que Movimentacoes apareca imediatamente apos Filtros, seguida de Totais, Pendentes do mes anterior e, por ultimo, Ajustar saldo inicial.
 - Nenhuma logica de calculo, rota ou dado exibido muda - apenas a ordem de apresentacao dos blocos na pagina.
 
 ## Capabilities
