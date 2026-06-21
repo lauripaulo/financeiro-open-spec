@@ -2,7 +2,7 @@
 
 Repositorio de especificacao com OpenSpec para um sistema de controle financeiro pessoal.
 
-Este repo descreve o produto (regras, design e tarefas).
+Este repo contem os artefatos OpenSpec e a implementacao inicial em Django.
 
 ## Escopo 
 
@@ -21,12 +21,39 @@ Este repo descreve o produto (regras, design e tarefas).
 - Frontend: Django templates + HTMX
 - Deploy: Docker
 
+## Como executar (rapido)
+
+### Opcao 1: ambiente local
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py runserver
+```
+
+Acesse: `http://127.0.0.1:8000/`
+
+### Opcao 2: Docker Compose
+
+```bash
+docker compose up --build
+```
+
+Acesse: `http://127.0.0.1:8000/`
+
+### Testes
+
+```bash
+.venv/bin/python manage.py test
+```
+
 ## Comandos OpenSpec uteis
 
 ```bash
 openspec list --json
-openspec status --change "setup-inicial"
-openspec validate setup-inicial
+openspec validate
+openspec list --archived
 ```
 
 ## Atalhos de comando para sessoes OpenCode

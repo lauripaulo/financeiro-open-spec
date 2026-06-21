@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Visao consolidada{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Visao consolidada - {{ mes }}/{{ ano }}</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <a href="?ano={{ ano_ant }}&mes={{ mes_ant }}">Mes anterior</a>
+        <a href="?ano={{ ano_prox }}&mes={{ mes_prox }}">Mes seguinte</a>
+        <form method="get" class="inline">
+            <input type="number" name="ano" value="{{ ano }}" min="2000" max="2200">
+            <input type="number" name="mes" value="{{ mes }}" min="1" max="12">
+            <button type="submit" class="secondary">Ir</button>
+        </form>
+        <form method="post" action="{% url 'visualizacao:criar_mes' %}">
+            {% csrf_token %}
+            <input type="hidden" name="ano" value="{{ ano }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            <button type="submit">Criar mes</button>
+        </form>
+    </div>
+</section>
+
+{% if aviso_limite_meses %}
+<div class="alert warn">{{ aviso_limite_meses }}</div>
+{% endif %}
+
+{% for alerta in alertas_limite %}
+<div class="alert warn">{{ alerta }}</div>
+{% endfor %}
+
+<section class="card">
+    <h3>Filtros</h3>
+    <form method="get" class="inline" style="flex-wrap:wrap;">
+        <input type="hidden" name="ano" value="{{ ano }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <label>Conta:
+            <select name="conta">
+                <option value="">Todas</option>
+                {% for conta in contas %}
+                    {% if conta.tipo != "INVESTIMENTO" %}
+                    <option value="{{ conta.id }}" {% if conta.id == conta_selecionada %}selected{% endif %}>{{ conta.nome }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </label>
+        <label><input type="checkbox" name="status" value="PREVISTO" {% if "PREVISTO" in status_ativos %}checked{% endif %}> Previsto</label>
+        <label><input type="checkbox" name="status" value="PENDENTE" {% if "PENDENTE" in status_ativos %}checked{% endif %}> Pendente</label>
+        <label><input type="checkbox" name="status" value="PAGO" {% if "PAGO" in status_ativos %}checked{% endif %}> Pago</label>
+        <button type="submit" class="secondary">Aplicar</button>
+    </form>
+</section>
+
+<section class="card">
+    <h3>Totais</h3>
+    <p>Entradas: R$ {{ total_entradas }}</p>
+    <p>Saidas: R$ {{ total_saidas }}</p>
+    <p><strong>Saldo consolidado: R$ {{ saldo_total }}</strong></p>
+</section>
+
+<section class="card">
+    <h3>Ajustar saldo inicial (Banco/Cartao)</h3>
+    {% for item in contas_ajuste %}
+        {% if item.conta.tipo != "INVESTIMENTO" %}
+        <form
+            method="post"
+            action="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
+            class="inline"
+            hx-post="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
+            hx-target="#flash-area"
+            hx-swap="innerHTML"
+            style="margin-bottom:8px;"
+        >
+            {% csrf_token %}
+            <span style="min-width:190px;">{{ item.conta.nome }}</span>
+            <input type="number" step="0.01" name="novo_saldo" value="{{ item.saldo_inicial }}">
+            <button type="submit" class="secondary">Ajustar</button>
+        </form>
+        {% endif %}
+    {% endfor %}
+</section>
+
+<section class="card">
+    <h3>Pendentes do mes anterior</h3>
+    {% if pendentes_mes_anterior %}
+        <ul>
+        {% for item in pendentes_mes_anterior %}
+            <li>
+                {{ item.descricao }} - {{ item.conta.nome }}
+                <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="inline" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit">Transferir</button>
+                </form>
+                <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="inline" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary">Manter</button>
+                </form>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Sem pendencias do mes anterior.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h3>Movimentacoes</h3>
+    <div style="margin-bottom:12px;display:flex;gap:8px;">
+        <a href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">Novo lancamento</a>
+        <a href="{% url 'lancamentos:compra_parcelada' %}">Nova compra parcelada</a>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>Descricao</th>
+            <th>Entrada</th>
+            <th>Saida</th>
+            <th>Conta</th>
+            <th>Data</th>
+            <th>Status</th>
+            <th>Acoes</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in lancamentos %}
+            <tr>
+                <td>{{ item.descricao }}</td>
+                <td>{% if item.direcao == "ENTRADA" %}+{{ item.valor_absoluto }}{% endif %}</td>
+                <td>{% if item.direcao == "SAIDA" %}-{{ item.valor_absoluto }}{% endif %}</td>
+                <td>{{ item.conta.nome }}</td>
+                <td>{{ item.data_vencimento|date:"d/m/Y" }}</td>
+                <td><span class="status {{ item.status }}">{{ item.get_status_display }}</span></td>
+                <td class="actions">
+                    {% if item.status != "PAGO" %}
+                    <form method="post" action="{% url 'lancamentos:marcar_pago' item.id %}" hx-post="{% url 'lancamentos:marcar_pago' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <input type="date" name="data_pagamento" required>
+                        <button type="submit">Pagar</button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'lancamentos:editar' item.id %}">Editar</a>
+                    <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="secondary">Excluir</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="7">Nenhum lancamento.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Comparativo{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Comparativo entre meses</h2>
+    <form method="get" class="inline" style="margin-bottom:12px;">
+        <label>Mes A</label>
+        <input type="number" name="mes_a" value="{{ mes_a }}" min="1" max="12">
+        <input type="number" name="ano_a" value="{{ ano_a }}" min="2000" max="2200">
+        <label>Mes B</label>
+        <input type="number" name="mes_b" value="{{ mes_b }}" min="1" max="12">
+        <input type="number" name="ano_b" value="{{ ano_b }}" min="2000" max="2200">
+        <button type="submit">Comparar</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Conta</th>
+                <th>{{ mes_a }}/{{ ano_a }}</th>
+                <th>{{ mes_b }}/{{ ano_b }}</th>
+                <th>Variacao</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for linha in linhas %}
+            <tr>
+                <td>{{ linha.conta.nome }}</td>
+                <td>R$ {{ linha.saldo_a }}</td>
+                <td>R$ {{ linha.saldo_b }}</td>
+                <td>R$ {{ linha.variacao }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Sem dados para comparar.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

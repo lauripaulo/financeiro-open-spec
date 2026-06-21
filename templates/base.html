@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Financeiro{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #f6f7fb; color: #1f2937; }
+        header { background: #0f172a; color: #fff; padding: 16px 20px; }
+        nav a { color: #cbd5e1; text-decoration: none; margin-right: 16px; }
+        nav a:hover { color: #fff; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .card { background: #fff; border-radius: 10px; box-shadow: 0 3px 14px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+        .alert { padding: 10px; border-radius: 8px; margin-bottom: 8px; }
+        .alert.warn { background: #fff7ed; border: 1px solid #fdba74; }
+        .alert.info { background: #eff6ff; border: 1px solid #93c5fd; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        .actions form { display: inline-block; margin-right: 6px; }
+        .status { font-weight: 600; }
+        .status.PREVISTO { color: #2563eb; }
+        .status.PENDENTE { color: #b45309; }
+        .status.PAGO { color: #047857; }
+        form.inline { display: inline-flex; gap: 8px; align-items: center; }
+        input, select, button { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        button { background: #0f766e; color: #fff; border-color: #0f766e; cursor: pointer; }
+        button.secondary { background: #fff; color: #0f766e; }
+    </style>
+</head>
+<body>
+<header>
+    <h1 style="margin:0 0 10px;">Controle Financeiro</h1>
+    <nav>
+        <a href="{% url 'visualizacao:consolidada' %}">Visao consolidada</a>
+        <a href="{% url 'visualizacao:patrimonio' %}">Patrimonio</a>
+        <a href="{% url 'visualizacao:comparativo' %}">Comparativo</a>
+    </nav>
+</header>
+<main class="container">
+    <div id="flash-area"></div>
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Mes nao criado{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Mes {{ mes }}/{{ ano }} ainda nao foi criado</h2>
+    <p>Para visualizar e editar este mes, crie-o primeiro.</p>
+    <form method="post" action="{% url 'visualizacao:criar_mes' %}">
+        {% csrf_token %}
+        <input type="hidden" name="ano" value="{{ ano }}">
+        <input type="hidden" name="mes" value="{{ mes }}">
+        <button type="submit">Criar mes</button>
+    </form>
+</section>
+{% endblock %}
