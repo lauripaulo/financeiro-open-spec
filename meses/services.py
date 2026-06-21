@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 import calendar
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
 
@@ -82,9 +83,7 @@ def criar_mes(ano, mes):
         pendentes = Lancamento.objects.filter(
             competencia_ano=ano_anterior,
             competencia_mes=mes_anterior,
-            data_pagamento__isnull=True,
-            data_vencimento__lt=date.today(),
-        )
+        ).pendentes()
 
         for origem in Lancamento.objects.filter(competencia_ano=ano_anterior, competencia_mes=mes_anterior):
             if origem.tipo in {
@@ -158,8 +157,19 @@ def excluir_serie_futura(lancamento):
     ).delete()
 
 
+def elegivel_para_transferencia(lancamento, ano_destino, mes_destino):
+    ano_anterior, mes_anterior = _mes_anterior(ano_destino, mes_destino)
+    if (lancamento.competencia_ano, lancamento.competencia_mes) != (ano_anterior, mes_anterior):
+        return False
+    return lancamento.status == Lancamento.Status.PENDENTE
+
+
 @transaction.atomic
 def transferir_pendente_para_mes(lancamento, ano_destino, mes_destino):
+    if not elegivel_para_transferencia(lancamento, ano_destino, mes_destino):
+        raise ValidationError(
+            "Apenas lancamentos pendentes do mes imediatamente anterior podem ser transferidos."
+        )
     lancamento.competencia_ano = ano_destino
     lancamento.competencia_mes = mes_destino
     lancamento.save(update_fields=["competencia_ano", "competencia_mes"])
@@ -203,10 +213,9 @@ def saldo_do_mes(conta, ano, mes, status_incluidos=None):
     if saldo is None:
         saldo = conta.saldo_atual or Decimal("0.00")
 
-    lancamentos = list(Lancamento.objects.filter(conta=conta, competencia_ano=ano, competencia_mes=mes))
+    lancamentos = Lancamento.objects.filter(conta=conta, competencia_ano=ano, competencia_mes=mes)
     if status_incluidos:
-        status_normalizados = {status.upper() for status in status_incluidos}
-        lancamentos = [item for item in lancamentos if item.status in status_normalizados]
+        lancamentos = lancamentos.com_status_in(status_incluidos)
 
     for lancamento in lancamentos:
         if lancamento.direcao == "ENTRADA":
@@ -237,9 +246,7 @@ def pendentes_mes_anterior(ano, mes):
     return Lancamento.objects.filter(
         competencia_ano=ano_ant,
         competencia_mes=mes_ant,
-        data_pagamento__isnull=True,
-        data_vencimento__lt=date.today(),
-    )
+    ).pendentes()
 
 
 def mes_anterior_posterior(ano, mes):

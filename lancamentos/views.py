@@ -22,12 +22,9 @@ def criar_lancamento(request):
     ano, mes = _contexto_mes(request)
 
     if request.method == "POST":
-        form = LancamentoForm(request.POST)
+        form = LancamentoForm(request.POST, instance=Lancamento(competencia_ano=ano, competencia_mes=mes))
         if form.is_valid():
-            lancamento = form.save(commit=False)
-            lancamento.competencia_ano = ano
-            lancamento.competencia_mes = mes
-            lancamento.save()
+            form.save()
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204)
             return redirect(f"/?ano={ano}&mes={mes}")

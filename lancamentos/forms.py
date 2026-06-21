@@ -10,12 +10,17 @@ class LancamentoForm(forms.ModelForm):
         model = Lancamento
         fields = ["descricao", "tipo", "data_vencimento", "valor", "conta"]
 
+    TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL = {
+        Lancamento.Tipo.CONCILIACAO,
+        Lancamento.Tipo.PARCELA_CARTAO,
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["tipo"].choices = [
             escolha
             for escolha in self.fields["tipo"].choices
-            if escolha[0] != Lancamento.Tipo.CONCILIACAO
+            if escolha[0] not in self.TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL
         ]
 
     def clean(self):
@@ -25,6 +30,12 @@ class LancamentoForm(forms.ModelForm):
 
         if tipo == Lancamento.Tipo.CONCILIACAO:
             self.add_error("tipo", "Conciliacao e gerada automaticamente pelo sistema.")
+
+        if tipo == Lancamento.Tipo.PARCELA_CARTAO:
+            self.add_error(
+                "tipo",
+                "Parcela de Cartao nao pode ser criada manualmente. Use o fluxo de compra parcelada para gerar as parcelas.",
+            )
 
         if tipo in {Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE} and conta and conta.tipo != Conta.Tipo.INVESTIMENTO:
             self.add_error("conta", "Aporte e Resgate sao exclusivos de contas Investimento.")

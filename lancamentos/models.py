@@ -29,6 +29,14 @@ class LancamentoQuerySet(models.QuerySet):
             return self.pendentes()
         raise ValueError(f"Status invalido: {status}")
 
+    def com_status_in(self, status_list):
+        if not status_list:
+            return self
+        condicoes = models.Q()
+        for status in status_list:
+            condicoes |= models.Q(pk__in=self.com_status(status).values_list("pk", flat=True))
+        return self.filter(condicoes)
+
 
 class Lancamento(models.Model):
     class Tipo(models.TextChoices):

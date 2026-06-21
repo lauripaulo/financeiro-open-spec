@@ -1,8 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from contas.models import Conta
@@ -62,10 +64,10 @@ def visao_consolidada(request):
     if conta_id:
         lancamentos = lancamentos.filter(conta_id=conta_id)
 
-    lancamentos_lista = list(lancamentos)
     if status:
-        status_set = set(status)
-        lancamentos_lista = [l for l in lancamentos_lista if l.status in status_set]
+        lancamentos = lancamentos.com_status_in(status)
+
+    lancamentos_lista = list(lancamentos)
 
     entradas = Decimal("0.00")
     saidas = Decimal("0.00")
@@ -75,10 +77,17 @@ def visao_consolidada(request):
         else:
             saidas += item.valor_absoluto
 
-    saldo_total = Decimal("0.00")
+    conta_selecionada_obj = contas_base.filter(pk=conta_id).first() if conta_id else None
+
+    if conta_selecionada_obj:
+        saldo_total = saldo_do_mes(conta_selecionada_obj, ano, mes, status_incluidos=status)
+    else:
+        saldo_total = Decimal("0.00")
+        for conta in contas_base:
+            saldo_total += saldo_do_mes(conta, ano, mes, status_incluidos=status)
+
     contas_ajuste = []
     for conta in contas_base:
-        saldo_total += saldo_do_mes(conta, ano, mes, status_incluidos=status)
         saldo_inicial = (
             SaldoMensalConta.objects.filter(conta=conta, ano=ano, mes=mes)
             .values_list("saldo_inicial", flat=True)
@@ -114,6 +123,7 @@ def visao_consolidada(request):
             "mes_prox": mes_prox,
             "contas": Conta.objects.all().order_by("nome"),
             "conta_selecionada": int(conta_id) if conta_id else None,
+            "conta_selecionada_obj": conta_selecionada_obj,
             "lancamentos": lancamentos_lista,
             "status_ativos": status or [],
             "total_entradas": entradas,
@@ -188,7 +198,10 @@ def transferir_pendente(request, pk):
         lancamento = Lancamento.objects.get(pk=pk)
     except Lancamento.DoesNotExist:
         return HttpResponseBadRequest("Lancamento nao encontrado.")
-    transferir_pendente_para_mes(lancamento, ano, mes)
+    try:
+        transferir_pendente_para_mes(lancamento, ano, mes)
+    except ValidationError as exc:
+        return HttpResponseBadRequest(" ".join(exc.messages))
     return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento transferido para o mes atual."})
 
 
@@ -226,7 +239,22 @@ def ajustar_saldo(request, conta_id):
 @require_http_methods(["POST"])
 def criar_mes_view(request):
     ano, mes = _filtros_mes(request)
-    _, _, aviso_limite = _carregar_mes(ano, mes)
+    _, pendentes, aviso_limite = _carregar_mes(ano, mes)
     if aviso_limite:
         request.session["aviso_limite_meses"] = "Limite recomendado de 12 meses futuros foi ultrapassado."
+    if pendentes.exists():
+        return redirect(f"{reverse('visualizacao:resolver_pendentes_abertura')}?ano={ano}&mes={mes}")
     return redirect(f"/?ano={ano}&mes={mes}")
+
+
+@require_http_methods(["GET"])
+def resolver_pendentes_abertura(request):
+    ano, mes = _filtros_mes(request)
+    pendentes = pendentes_mes_anterior(ano, mes)
+    if not pendentes.exists():
+        return redirect(f"/?ano={ano}&mes={mes}")
+    return render(
+        request,
+        "visualizacao/resolver_pendentes.html",
+        {"ano": ano, "mes": mes, "pendentes": pendentes},
+    )

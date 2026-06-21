@@ -73,3 +73,16 @@ O objetivo desta mudanca e fechar esses gaps sem alterar o stack nem o desenho p
 
 - A confirmacao de pendentes na abertura do mes deve bloquear totalmente a tela principal ate todas as decisoes, ou permitir salvar parcial e retomar?
 - Na visao com conta filtrada, o texto deve mudar para "Saldo da conta" para evitar ambiguidade com "Saldo consolidado"?
+
+## Regressao encontrada durante a implementacao
+
+Ao escrever testes de regressao para a restricao de `PARCELA_CARTAO` (tarefa 4.4), foi identificado que
+`lancamentos/views.py:criar_lancamento` quebrava com `TypeError` em **qualquer** submissao, valida ou nao.
+Causa: `LancamentoForm` nao inclui `competencia_ano`/`competencia_mes` (esses campos sao preenchidos pela view
+somente apos `form.save(commit=False)`), mas `form.is_valid()` aciona `Lancamento.full_clean()` antes disso, e
+`Lancamento.clean()` compara `self.competencia_mes` (ainda `None`) com `1 <= ... <= 12`.
+
+**Correcao:** a view agora constroi o form com uma instancia pre-populada
+(`LancamentoForm(request.POST, instance=Lancamento(competencia_ano=ano, competencia_mes=mes))`), eliminando a
+necessidade de atribuir os campos apos `save(commit=False)`. Cobertura adicionada em
+`lancamentos/tests.py::CriarLancamentoViewTests`.
