@@ -13,7 +13,7 @@ from visualizacao.views import _filtros_mes
 
 
 def _mes_atual():
-    hoje = date.today()
+    hoje = timezone.localdate()
     return hoje.year, hoje.month
 
 
