@@ -227,6 +227,16 @@ class Lancamento(models.Model):
 
             # Set new reverse link (cycle guard: skip if partner already points here)
             if new_vinculado_id is not None:
+                parceiro_antigo_id = (
+                    Lancamento.objects.filter(pk=new_vinculado_id)
+                    .values_list("lancamento_vinculado_id", flat=True)
+                    .first()
+                )
+                if parceiro_antigo_id is not None and parceiro_antigo_id != self.pk:
+                    Lancamento.objects.filter(
+                        pk=parceiro_antigo_id, lancamento_vinculado_id=new_vinculado_id
+                    ).update(lancamento_vinculado=None)
+
                 Lancamento.objects.filter(pk=new_vinculado_id).exclude(
                     lancamento_vinculado_id=self.pk
                 ).update(lancamento_vinculado=self.pk)
