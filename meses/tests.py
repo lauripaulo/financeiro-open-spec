@@ -20,7 +20,7 @@ from meses.services import (
 
 
 def _mes_atual():
-    hoje = date.today()
+    hoje = timezone.localdate()
     return hoje.year, hoje.month
 
 
