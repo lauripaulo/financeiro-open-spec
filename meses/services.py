@@ -58,7 +58,9 @@ def mes_permitido_para_abertura():
     Se nao ha mes aberto: retorna o mes atual.
     Se ha meses abertos: retorna o mes imediatamente seguinte ao ultimo.
     """
-    hoje = date.today()
+    from django.utils import timezone
+
+    hoje = timezone.localdate()
     ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
     if ultimo is None:
         return hoje.year, hoje.month
