@@ -1,6 +1,6 @@
-# Delta for Lancamentos
+# Delta para Lancamentos
 
-## MODIFIED Requirements
+## REQUISITOS MODIFICADOS
 
 ### Requirement: Tipos de lancamento suportados
 O sistema SHALL suportar os seguintes tipos de lancamento, cada um com uma direcao
@@ -48,7 +48,7 @@ manualmente pelo usuario), ao ajustar o saldo inicial herdado de um mes.
 - WHEN ele tenta selecionar o tipo Conciliacao manualmente
 - THEN o sistema SHALL impedir a selecao, pois esse tipo e gerado apenas pelo sistema
 
-## ADDED Requirements
+## REQUISITOS ADICIONADOS
 
 ### Requirement: Parcela de Cartao nao participa de cascata de recorrencia
 O sistema SHALL aplicar cascata de edicao/exclusao de serie recorrente apenas aos

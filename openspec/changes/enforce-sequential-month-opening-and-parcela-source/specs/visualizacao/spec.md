@@ -1,6 +1,6 @@
-# Delta for Visualizacao
+# Delta para Visualizacao
 
-## ADDED Requirements
+## REQUISITOS ADICIONADOS
 
 ### Requirement: Feedback explicito para tentativa de abertura de mes fora da sequencia
 Quando o usuario tentar abrir um mes fora da sequencia permitida, o sistema SHALL

@@ -1,6 +1,6 @@
-# Delta for Parcelas
+# Delta para Parcelas
 
-## MODIFIED Requirements
+## REQUISITOS MODIFICADOS
 
 ### Requirement: Geracao automatica de lancamentos de parcela
 O sistema SHALL criar automaticamente um lancamento do tipo Parcela de Cartao para
@@ -15,7 +15,7 @@ registro da compra parcelada, e SHALL produzir toda a serie de parcelas prevista
 - THEN o sistema SHALL criar 10 lancamentos do tipo Parcela de Cartao de R$ 10,00 cada
 - AND os vencimentos SHALL ir de 10/fevereiro a 10/novembro
 
-## ADDED Requirements
+## REQUISITOS ADICIONADOS
 
 ### Requirement: Abertura de mes nao gera parcelas de cartao
 O sistema SHALL NOT gerar lancamentos do tipo Parcela de Cartao durante o fluxo de

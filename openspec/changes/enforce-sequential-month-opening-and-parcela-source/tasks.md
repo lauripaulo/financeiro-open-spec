@@ -1,38 +1,38 @@
-## 1. Enforce month-opening sequence rules
+## 1. Aplicar regras de sequencia na abertura de mes
 
-- [ ] 1.1 Add service-layer validation in `meses/services.py` to allow only current month as first opened month
-- [ ] 1.2 Add service-layer validation in `meses/services.py` to allow only immediate next month after latest opened month
-- [ ] 1.3 Keep idempotent behavior when `criar_mes` is called for an already opened month
-- [ ] 1.4 Return clear validation message containing the allowed month (`MM/AAAA`) when sequence is violated
+- [ ] 1.1 Adicionar validacao no service layer em `meses/services.py` para permitir somente o mes atual como primeiro mes aberto
+- [ ] 1.2 Adicionar validacao no service layer em `meses/services.py` para permitir somente o mes imediatamente seguinte ao ultimo mes aberto
+- [ ] 1.3 Manter comportamento idempotente quando `criar_mes` for chamado para um mes ja aberto
+- [ ] 1.4 Retornar mensagem de validacao clara contendo o mes permitido (`MM/AAAA`) quando a sequencia for violada
 
-## 2. Make parcelas purchase-flow only
+## 2. Tornar parcelas exclusivas do fluxo de compra
 
-- [ ] 2.1 Remove `PARCELA_CARTAO` propagation branch from month-opening logic in `meses/services.py`
-- [ ] 2.2 Ensure month propagation still covers fixed recurring types (`RECEBIMENTO_FIXO`, `GASTO_FIXO`, `ASSINATURA`)
-- [ ] 2.3 Keep installment generation centralized in `parcelas/services.py` purchase flow
+- [ ] 2.1 Remover o ramo de propagacao de `PARCELA_CARTAO` da logica de abertura de mes em `meses/services.py`
+- [ ] 2.2 Garantir que a propagacao de mes continue cobrindo tipos recorrentes fixos (`RECEBIMENTO_FIXO`, `GASTO_FIXO`, `ASSINATURA`)
+- [ ] 2.3 Manter a geracao de parcelas centralizada no fluxo de compra em `parcelas/services.py`
 
-## 3. Align lancamento recurrence semantics
+## 3. Alinhar semantica de recorrencia de lancamentos
 
-- [ ] 3.1 Remove `PARCELA_CARTAO` from recurring classification (`TIPOS_PROPAGAVEIS`) in `lancamentos/models.py`
-- [ ] 3.2 Verify recurring edit cascade (`atualizar_serie_futura`) no longer applies series-wide updates to parcelas
-- [ ] 3.3 Verify recurring delete cascade (`excluir_serie_futura`) no longer removes parcelas as recurring series
+- [ ] 3.1 Remover `PARCELA_CARTAO` da classificacao de recorrencia (`TIPOS_PROPAGAVEIS`) em `lancamentos/models.py`
+- [ ] 3.2 Verificar que a cascata de edicao recorrente (`atualizar_serie_futura`) nao aplica mais atualizacoes em massa para parcelas
+- [ ] 3.3 Verificar que a cascata de exclusao recorrente (`excluir_serie_futura`) nao remove mais parcelas como serie recorrente
 
-## 4. Update month-opening feedback in visualization
+## 4. Atualizar feedback de abertura de mes na visualizacao
 
-- [ ] 4.1 Handle month-opening validation errors in `visualizacao/views.py` and surface user-facing feedback
-- [ ] 4.2 Update `templates/visualizacao/mes_nao_criado.html` to show the allowed month and actionable next step
-- [ ] 4.3 Ensure consolidated flow keeps navigation coherent when month creation is rejected by sequence rules
+- [ ] 4.1 Tratar erros de validacao de abertura de mes em `visualizacao/views.py` e expor feedback claro para o usuario
+- [ ] 4.2 Atualizar `templates/visualizacao/mes_nao_criado.html` para mostrar o mes permitido e o proximo passo acionavel
+- [ ] 4.3 Garantir que o fluxo consolidado mantenha navegacao coerente quando a criacao de mes for rejeitada pelas regras de sequencia
 
-## 5. Expand and adapt tests
+## 5. Expandir e adaptar testes
 
-- [ ] 5.1 Add tests in `meses/tests.py` for first month must be current month
-- [ ] 5.2 Add tests in `meses/tests.py` for strict no-skip sequence and immediate-next success case
-- [ ] 5.3 Add regression test proving month opening does not create duplicate parcelas after purchase generation
-- [ ] 5.4 Update affected tests in `visualizacao/tests.py` for sequence-validation feedback behavior
-- [ ] 5.5 Refactor date-sensitive tests to be deterministic under current-month-first rule
+- [ ] 5.1 Adicionar testes em `meses/tests.py` para garantir que o primeiro mes deve ser o atual
+- [ ] 5.2 Adicionar testes em `meses/tests.py` para validar regra estrita de nao pular mes e caso de sucesso do mes imediatamente seguinte
+- [ ] 5.3 Adicionar teste de regressao provando que abrir mes nao cria parcelas duplicadas apos geracao por compra
+- [ ] 5.4 Atualizar testes afetados em `visualizacao/tests.py` para o comportamento de feedback da validacao de sequencia
+- [ ] 5.5 Refatorar testes sensiveis a data para ficarem deterministas sob a regra de primeiro mes atual
 
-## 6. Update specs and docs
+## 6. Atualizar specs e documentacao
 
-- [ ] 6.1 Validate spec deltas for `meses`, `parcelas`, `lancamentos`, and `visualizacao` with `openspec validate`
-- [ ] 6.2 Align wording in project docs with canonical parcela ownership and sequential month-opening rule
-- [ ] 6.3 Update `README.md` as the final step of execution to reflect the new behavior and correct OpenSpec command examples
+- [ ] 6.1 Validar os deltas de spec de `meses`, `parcelas`, `lancamentos` e `visualizacao` com `openspec validate`
+- [ ] 6.2 Alinhar a redacao da documentacao do projeto com a responsabilidade canonica de parcelas e a regra sequencial de abertura de mes
+- [ ] 6.3 Atualizar `README.md` como etapa final da execucao para refletir o novo comportamento e corrigir exemplos de comandos OpenSpec

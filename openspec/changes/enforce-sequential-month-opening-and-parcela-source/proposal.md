@@ -1,34 +1,34 @@
-## Why
+## Por que
 
-The current domain behavior allows two writers for `PARCELA_CARTAO` (purchase flow and month opening), which can produce duplicate installments and ambiguous ownership of installment lifecycle. Month creation also allows opening arbitrary months, which breaks the intended temporal chain and introduces inconsistency in propagation and balances.
+A implementacao atual permite dois escritores para `PARCELA_CARTAO` (fluxo de compra parcelada e abertura de mes), o que pode gerar parcelas duplicadas e ambiguidade sobre a responsabilidade pelo ciclo de vida das parcelas. A criacao de mes tambem permite abrir meses arbitrarios, o que quebra a cadeia temporal esperada e introduz inconsistencias em propagacao e saldos.
 
-## What Changes
+## O que muda
 
-- Make `CompraParcelada` the single source of truth for generating `PARCELA_CARTAO` installments.
-- Remove `PARCELA_CARTAO` generation from month opening propagation.
-- Enforce month-opening sequence rules:
-  - First opened month must be the current month.
-  - After the first month, only the immediate next month can be opened (no skip).
-- Keep idempotent behavior when requesting a month that is already open.
-- Remove `PARCELA_CARTAO` from recurring cascade semantics used for recurring edit/delete flows.
-- Improve user feedback for invalid month-opening attempts by showing the allowed month.
-- Update docs and tests to reflect the canonical behavior, including README updates at the end of execution.
+- Tornar `CompraParcelada` a fonte unica de verdade para geracao de parcelas `PARCELA_CARTAO`.
+- Remover a geracao de `PARCELA_CARTAO` da propagacao de abertura de mes.
+- Enforcar regras de sequencia para abertura de mes:
+  - o primeiro mes aberto deve ser o mes atual;
+  - apos o primeiro, somente o mes imediatamente seguinte pode ser aberto (sem pular).
+- Manter comportamento idempotente quando for solicitado um mes que ja esta aberto.
+- Remover `PARCELA_CARTAO` da semantica de cascata de recorrencia usada nos fluxos de editar/excluir recorrentes.
+- Melhorar o feedback ao usuario em tentativas invalidas de abertura de mes, mostrando o mes permitido.
+- Atualizar documentacao e testes para refletir o comportamento canonico, incluindo atualizacao do README ao final da execucao.
 
-## Capabilities
+## Capacidades
 
-### New Capabilities
-- *(none)*
+### Novas capacidades
+- *(nenhuma)*
 
-### Modified Capabilities
-- `meses`: month opening becomes strictly sequential and no longer propagates `PARCELA_CARTAO`.
-- `parcelas`: installment generation is explicitly owned by purchase flow only.
-- `lancamentos`: `PARCELA_CARTAO` no longer participates in recurring-series cascade behavior.
-- `visualizacao`: month-opening UI feedback now communicates the allowed month when sequence rules are violated.
+### Capacidades modificadas
+- `meses`: abertura de mes passa a ser estritamente sequencial e deixa de propagar `PARCELA_CARTAO`.
+- `parcelas`: a geracao de parcelas passa a ser explicitamente de responsabilidade apenas do fluxo de compra.
+- `lancamentos`: `PARCELA_CARTAO` deixa de participar de comportamento de cascata em serie recorrente.
+- `visualizacao`: feedback da UI de abertura de mes passa a comunicar o mes permitido quando a regra de sequencia for violada.
 
-## Impact
+## Impacto
 
-- Backend services in `meses/services.py` and purchase/installment behavior in `parcelas/services.py`.
-- Recurrence classification in `lancamentos/models.py` and related edit/delete flows.
-- Month-opening feedback flow in `visualizacao/views.py` and templates.
-- OpenSpec spec deltas for `meses`, `parcelas`, `lancamentos`, and `visualizacao`.
-- Test suite updates for sequential month constraints and parcela non-duplication.
+- Services de backend em `meses/services.py` e comportamento de compra/parcelas em `parcelas/services.py`.
+- Classificacao de recorrencia em `lancamentos/models.py` e fluxos relacionados de edicao/exclusao.
+- Fluxo de feedback de abertura de mes em `visualizacao/views.py` e templates.
+- Deltas de spec OpenSpec para `meses`, `parcelas`, `lancamentos` e `visualizacao`.
+- Atualizacoes da suite de testes para restricoes de sequencia de meses e nao duplicacao de parcelas.
