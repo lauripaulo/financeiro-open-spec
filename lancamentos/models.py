@@ -69,7 +69,6 @@ class Lancamento(models.Model):
         Tipo.RECEBIMENTO_FIXO,
         Tipo.GASTO_FIXO,
         Tipo.ASSINATURA,
-        Tipo.PARCELA_CARTAO,
     }
 
     TIPOS_ENTRADA = {

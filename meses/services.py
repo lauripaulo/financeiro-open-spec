@@ -52,8 +52,58 @@ def avisar_limite_meses_futuros(ano, mes):
     return diferenca > 12
 
 
+def mes_permitido_para_abertura():
+    """Retorna (ano, mes) do proximo mes permitido para abertura.
+
+    Se nao ha mes aberto: retorna o mes atual.
+    Se ha meses abertos: retorna o mes imediatamente seguinte ao ultimo.
+    """
+    from django.utils import timezone
+
+    hoje = timezone.localdate()
+    ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
+    if ultimo is None:
+        return hoje.year, hoje.month
+    return _mes_posterior(ultimo.ano, ultimo.mes)
+
+
+def _validar_sequencia_mes(ano, mes):
+    """Valida que o mes solicitado segue a sequencia obrigatoria.
+
+    - Se nao ha nenhum mes aberto: apenas o mes atual e permitido.
+    - Se ja ha meses abertos: apenas o mes imediatamente seguinte ao ultimo mes aberto e permitido.
+
+    Levanta ValidationError com o mes permitido se a regra for violada.
+    Retorna sem erro se o mes ja estiver aberto (idempotente) ou se for valido.
+    """
+    if MesAberto.objects.filter(ano=ano, mes=mes).exists():
+        return  # idempotente: mes ja aberto, nada a fazer
+
+    from django.utils import timezone
+
+    hoje = timezone.localdate()
+    ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
+    if ultimo is None:
+        # Nenhum mes aberto: apenas o mes atual e permitido
+        if (ano, mes) != (hoje.year, hoje.month):
+            permitido = f"{hoje.month:02d}/{hoje.year}"
+            raise ValidationError(
+                f"O primeiro mes a ser aberto deve ser o mes atual ({permitido})."
+            )
+    else:
+        # Ja ha meses abertos: apenas o imediatamente seguinte e permitido
+        ano_permitido, mes_permitido = _mes_posterior(ultimo.ano, ultimo.mes)
+        if (ano, mes) != (ano_permitido, mes_permitido):
+            permitido = f"{mes_permitido:02d}/{ano_permitido}"
+            raise ValidationError(
+                f"Apenas o mes imediatamente seguinte pode ser aberto. Mes permitido: {permitido}."
+            )
+
+
 @transaction.atomic
 def criar_mes(ano, mes):
+    _validar_sequencia_mes(ano, mes)
+
     mes_aberto, criado = MesAberto.objects.get_or_create(ano=ano, mes=mes)
     avisar_limite = avisar_limite_meses_futuros(ano, mes)
 
@@ -92,19 +142,13 @@ def criar_mes(ano, mes):
                 Lancamento.Tipo.CONCILIACAO,
                 Lancamento.Tipo.APORTE,
                 Lancamento.Tipo.RESGATE,
+                Lancamento.Tipo.PARCELA_CARTAO,
             }:
                 continue
 
-            if origem.tipo == Lancamento.Tipo.PARCELA_CARTAO:
-                if origem.parcela_atual >= origem.total_parcelas:
-                    continue
-                parcela_atual = origem.parcela_atual + 1
-                vencimento = _data_mes_segura(ano, mes, origem.conta.dia_vencimento)
-                descricao = origem.descricao.rsplit(" ", 1)[0] + f" {parcela_atual}/{origem.total_parcelas}"
-            else:
-                parcela_atual = None
-                vencimento = _data_mes_segura(ano, mes, origem.data_vencimento.day)
-                descricao = origem.descricao
+            parcela_atual = None
+            vencimento = _data_mes_segura(ano, mes, origem.data_vencimento.day)
+            descricao = origem.descricao
 
             novo = Lancamento.objects.create(
                 descricao=descricao,

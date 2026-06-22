@@ -12,6 +12,17 @@ from visualizacao.templatetags.moeda import moeda
 from visualizacao.views import _filtros_mes
 
 
+def _mes_atual():
+    hoje = timezone.localdate()
+    return hoje.year, hoje.month
+
+
+def _mes_seguinte(ano, mes):
+    if mes == 12:
+        return ano + 1, 1
+    return ano, mes + 1
+
+
 class MoedaFilterTests(TestCase):
     def test_valor_simples(self):
         self.assertEqual(moeda(Decimal("256432.11")), "R$ 256.432,11")
@@ -83,16 +94,18 @@ class VisaoConsolidadaTests(TestCase):
             tipo=Conta.Tipo.BANCO,
             saldo_atual=Decimal("500.00"),
         )
-        criar_mes(2026, 4)
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
         self.url = reverse("visualizacao:consolidada")
 
     def test_mes_nao_criado_renderiza_pagina_especifica(self):
-        response = self.client.get(self.url, {"ano": "2030", "mes": "1"})
+        # Use a far-future month that doesn't exist
+        response = self.client.get(self.url, {"ano": "2099", "mes": "1"})
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "visualizacao/mes_nao_criado.html")
 
     def test_mes_criado_renderiza_consolidada(self):
-        response = self.client.get(self.url, {"ano": "2026", "mes": "4"})
+        response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "visualizacao/consolidada.html")
 
@@ -101,22 +114,22 @@ class VisaoConsolidadaTests(TestCase):
         Lancamento.objects.create(
             descricao="Entrada conta principal",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("100.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         Lancamento.objects.create(
             descricao="Entrada outra conta",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("200.00"),
             conta=outra,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
-        response = self.client.get(self.url, {"ano": "2026", "mes": "4", "conta": str(self.conta.pk)})
+        response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes), "conta": str(self.conta.pk)})
         self.assertEqual(response.status_code, 200)
         lancamentos = response.context["lancamentos"]
         self.assertTrue(all(l.conta_id == self.conta.pk for l in lancamentos))
@@ -125,23 +138,23 @@ class VisaoConsolidadaTests(TestCase):
         Lancamento.objects.create(
             descricao="Pago",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 1),
-            data_pagamento=date(2026, 4, 1),
+            data_vencimento=date(self.ano, self.mes, 1),
+            data_pagamento=date(self.ano, self.mes, 1),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         Lancamento.objects.create(
             descricao="Nao pago",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 30),
+            data_vencimento=date(self.ano, self.mes, 28),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
-        response = self.client.get(self.url, {"ano": "2026", "mes": "4", "status": "PAGO"})
+        response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes), "status": "PAGO"})
         self.assertEqual(response.status_code, 200)
         lancamentos = response.context["lancamentos"]
         self.assertTrue(all(l.status == Lancamento.Status.PAGO for l in lancamentos))
@@ -149,28 +162,27 @@ class VisaoConsolidadaTests(TestCase):
 
     def test_saldo_total_restrito_a_conta_filtrada(self):
         outra = Conta.objects.create(nome="Outro Banco Saldo", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
-        criar_mes(2026, 4)
         Lancamento.objects.create(
             descricao="Entrada conta principal",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("100.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         Lancamento.objects.create(
             descricao="Entrada outra conta",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("200.00"),
             conta=outra,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
 
-        response_sem_filtro = self.client.get(self.url, {"ano": "2026", "mes": "4"})
-        response_com_filtro = self.client.get(self.url, {"ano": "2026", "mes": "4", "conta": str(self.conta.pk)})
+        response_sem_filtro = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
+        response_com_filtro = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes), "conta": str(self.conta.pk)})
 
         self.assertEqual(response_sem_filtro.context["saldo_total"], Decimal("800.00"))
         self.assertEqual(response_com_filtro.context["saldo_total"], Decimal("600.00"))
@@ -179,24 +191,24 @@ class VisaoConsolidadaTests(TestCase):
         Lancamento.objects.create(
             descricao="Pago",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 1),
-            data_pagamento=date(2026, 4, 1),
+            data_vencimento=date(self.ano, self.mes, 1),
+            data_pagamento=date(self.ano, self.mes, 1),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         Lancamento.objects.create(
             descricao="Nao pago",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 30),
+            data_vencimento=date(self.ano, self.mes, 28),
             valor=Decimal("999.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         response = self.client.get(
-            self.url, {"ano": "2026", "mes": "4", "conta": str(self.conta.pk), "status": "PAGO"}
+            self.url, {"ano": str(self.ano), "mes": str(self.mes), "conta": str(self.conta.pk), "status": "PAGO"}
         )
         self.assertEqual(len(response.context["lancamentos"]), 1)
         self.assertEqual(response.context["saldo_total"], Decimal("550.00"))
@@ -205,22 +217,22 @@ class VisaoConsolidadaTests(TestCase):
         Lancamento.objects.create(
             descricao="Salario",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 5),
+            data_vencimento=date(self.ano, self.mes, 5),
             valor=Decimal("1000.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         Lancamento.objects.create(
             descricao="Aluguel",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("300.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
-        response = self.client.get(self.url, {"ano": "2026", "mes": "4"})
+        response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.context["total_entradas"], Decimal("1000.00"))
         self.assertEqual(response.context["total_saidas"], Decimal("300.00"))
 
@@ -228,13 +240,13 @@ class VisaoConsolidadaTests(TestCase):
         Lancamento.objects.create(
             descricao="Salario",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 5),
+            data_vencimento=date(self.ano, self.mes, 5),
             valor=Decimal("1234.56"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
-        response = self.client.get(self.url, {"ano": "2026", "mes": "4"})
+        response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertContains(response, "R$ 1.234,56")
 
 
@@ -266,61 +278,65 @@ class TransferirPendenteTests(TestCase):
             tipo=Conta.Tipo.BANCO,
             saldo_atual=Decimal("100.00"),
         )
-        criar_mes(2026, 3)
-        criar_mes(2026, 4)
+        self.ano1, self.mes1 = _mes_atual()
+        self.ano2, self.mes2 = _mes_seguinte(self.ano1, self.mes1)
+        criar_mes(self.ano1, self.mes1)
+        criar_mes(self.ano2, self.mes2)
         self.lancamento = Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date(2026, 3, 5),
+            data_vencimento=timezone.localdate() - timedelta(days=5),
             valor=Decimal("80.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=3,
+            competencia_ano=self.ano1,
+            competencia_mes=self.mes1,
         )
 
     def test_transfere_lancamento_para_mes_atual(self):
         url = reverse("visualizacao:transferir_pendente", args=[self.lancamento.pk])
-        response = self.client.post(url, {"ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 200)
         self.lancamento.refresh_from_db()
-        self.assertEqual(self.lancamento.competencia_mes, 4)
-        self.assertEqual(self.lancamento.competencia_ano, 2026)
+        self.assertEqual(self.lancamento.competencia_mes, self.mes2)
+        self.assertEqual(self.lancamento.competencia_ano, self.ano2)
 
     def test_retorna_400_para_pk_inexistente(self):
         url = reverse("visualizacao:transferir_pendente", args=[99999])
-        response = self.client.post(url, {"ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 400)
 
     def test_rejeita_transferencia_de_lancamento_fora_do_mes_anterior(self):
-        criar_mes(2026, 5)
+        ano3, mes3 = _mes_seguinte(self.ano2, self.mes2)
+        criar_mes(ano3, mes3)
+        # Lancamento no primeiro mes (nao imediatamente anterior ao terceiro mes)
         lancamento_dois_meses_atras = Lancamento.objects.create(
             descricao="Conta antiga",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date(2026, 2, 5),
+            data_vencimento=timezone.localdate() - timedelta(days=5),
             valor=Decimal("30.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=2,
+            competencia_ano=self.ano1,
+            competencia_mes=self.mes1,
         )
         url = reverse("visualizacao:transferir_pendente", args=[lancamento_dois_meses_atras.pk])
-        response = self.client.post(url, {"ano": "2026", "mes": "5"})
+        response = self.client.post(url, {"ano": str(ano3), "mes": str(mes3)})
         self.assertEqual(response.status_code, 400)
         lancamento_dois_meses_atras.refresh_from_db()
-        self.assertEqual(lancamento_dois_meses_atras.competencia_mes, 2)
+        self.assertEqual(lancamento_dois_meses_atras.competencia_mes, self.mes1)
 
     def test_rejeita_transferencia_de_lancamento_ja_pago(self):
         pago = Lancamento.objects.create(
             descricao="Conta paga",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date(2026, 3, 5),
-            data_pagamento=date(2026, 3, 5),
+            data_vencimento=timezone.localdate() - timedelta(days=5),
+            data_pagamento=timezone.localdate() - timedelta(days=4),
             valor=Decimal("30.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=3,
+            competencia_ano=self.ano1,
+            competencia_mes=self.mes1,
         )
         url = reverse("visualizacao:transferir_pendente", args=[pago.pk])
-        response = self.client.post(url, {"ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 400)
 
 
@@ -360,46 +376,47 @@ class AjustarSaldoTests(TestCase):
             tipo=Conta.Tipo.BANCO,
             saldo_atual=Decimal("500.00"),
         )
-        criar_mes(2026, 4)
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
 
     def test_ajuste_valido_retorna_flash(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
-        response = self.client.post(url, {"novo_saldo": "600.00", "ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"novo_saldo": "600.00", "ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "visualizacao/_flash.html")
 
     def test_campo_ausente_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
-        response = self.client.post(url, {"ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 400)
 
     def test_decimal_invalido_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
-        response = self.client.post(url, {"novo_saldo": "abc", "ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"novo_saldo": "abc", "ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 400)
 
     def test_campo_vazio_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
-        response = self.client.post(url, {"novo_saldo": "", "ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"novo_saldo": "", "ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 400)
 
     def test_conta_inexistente_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[99999])
-        response = self.client.post(url, {"novo_saldo": "100.00", "ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"novo_saldo": "100.00", "ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 400)
 
     def test_ajuste_gera_conciliacao_quando_necessario(self):
         Lancamento.objects.create(
             descricao="Entrada",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(self.ano, self.mes, 10),
             valor=Decimal("100.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
-        response = self.client.post(url, {"novo_saldo": "450.00", "ano": "2026", "mes": "4"})
+        response = self.client.post(url, {"novo_saldo": "450.00", "ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(
             Lancamento.objects.filter(conta=self.conta, tipo=Lancamento.Tipo.CONCILIACAO).exists()
@@ -409,27 +426,45 @@ class AjustarSaldoTests(TestCase):
 class CriarMesViewTests(TestCase):
     def setUp(self):
         self.conta = Conta.objects.create(nome="Banco CM", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        self.ano, self.mes = _mes_atual()
 
     def test_cria_mes_e_redireciona(self):
+        """Task 5.4: Criar o mes atual como primeiro mes redireciona corretamente."""
         url = reverse("visualizacao:criar_mes")
-        response = self.client.post(url, {"ano": "2026", "mes": "5"})
+        response = self.client.post(url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertEqual(response.status_code, 302)
-        self.assertIn("ano=2026", response["Location"])
-        self.assertIn("mes=5", response["Location"])
+        self.assertIn(f"ano={self.ano}", response["Location"])
+        self.assertIn(f"mes={self.mes}", response["Location"])
+
+    def test_cria_mes_invalido_retorna_pagina_com_erro(self):
+        """Task 5.4: Tentar criar mes fora da sequencia retorna mes_nao_criado com erro."""
+        # Tentar criar um mes diferente do atual quando nenhum mes esta aberto
+        hoje = date.today()
+        ano_outro = hoje.year
+        mes_outro = hoje.month - 1 if hoje.month > 1 else 12
+        if mes_outro == 12 and hoje.month == 1:
+            ano_outro -= 1
+        url = reverse("visualizacao:criar_mes")
+        response = self.client.post(url, {"ano": str(ano_outro), "mes": str(mes_outro)})
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "visualizacao/mes_nao_criado.html")
+        self.assertIn("erro_validacao", response.context)
 
     def test_cria_mes_com_pendentes_redireciona_para_resolucao(self):
-        criar_mes(2026, 4)
+        """Task 5.4: Criar mes seguinte com pendentes redireciona para resolucao."""
+        criar_mes(self.ano, self.mes)
+        ano2, mes2 = _mes_seguinte(self.ano, self.mes)
         Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
             data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
         )
         url = reverse("visualizacao:criar_mes")
-        response = self.client.post(url, {"ano": "2026", "mes": "5"})
+        response = self.client.post(url, {"ano": str(ano2), "mes": str(mes2)})
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("visualizacao:resolver_pendentes_abertura"), response["Location"])
 
@@ -437,26 +472,28 @@ class CriarMesViewTests(TestCase):
 class ResolverPendentesAberturaTests(TestCase):
     def setUp(self):
         self.conta = Conta.objects.create(nome="Banco RP", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
-        criar_mes(2026, 4)
+        self.ano1, self.mes1 = _mes_atual()
+        self.ano2, self.mes2 = _mes_seguinte(self.ano1, self.mes1)
+        criar_mes(self.ano1, self.mes1)
         self.pendente = Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
             data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=self.ano1,
+            competencia_mes=self.mes1,
         )
-        criar_mes(2026, 5)
+        criar_mes(self.ano2, self.mes2)
 
     def test_exibe_pendentes_para_resolucao(self):
         url = reverse("visualizacao:resolver_pendentes_abertura")
-        response = self.client.get(url, {"ano": "2026", "mes": "5"})
+        response = self.client.get(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Conta atrasada")
 
     def test_redireciona_quando_nao_ha_pendentes(self):
-        transferir_pendente_para_mes(self.pendente, 2026, 5)
+        transferir_pendente_para_mes(self.pendente, self.ano2, self.mes2)
         url = reverse("visualizacao:resolver_pendentes_abertura")
-        response = self.client.get(url, {"ano": "2026", "mes": "5"})
+        response = self.client.get(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 302)

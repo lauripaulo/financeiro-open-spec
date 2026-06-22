@@ -41,12 +41,34 @@ não em `post_save` signals nem espalhada em métodos de model. Isso facilita te
 isoladamente as regras de cascata (edição sobrescreve customização futura, exclusão
 remove instâncias futuras já criadas) e deixa o fluxo explícito em code review.
 
+### Abertura de mês estritamente sequencial
+A criação de mês (`criar_mes`) aplica uma guarda de sequência obrigatória:
+- Se não existe nenhum mês aberto, apenas o mês/ano atual pode ser o primeiro.
+- Se já existem meses abertos, apenas o mês imediatamente seguinte ao último
+  mês aberto pode ser criado (sem pular).
+- Chamadas para um mês já aberto são idempotentes — retornam o mês existente
+  sem erro.
+A validação está centralizada em `_validar_sequencia_mes` dentro de
+`meses/services.py` e levanta `ValidationError` com o mês permitido no formato
+`MM/AAAA` sempre que a regra for violada.
+
+### Fonte única de verdade para Parcela de Cartão
+Lançamentos do tipo `PARCELA_CARTAO` são gerados **exclusivamente** pelo fluxo de
+compra parcelada em `parcelas/services.py` (`gerar_parcelas_da_compra`). A
+abertura de mês **não** propaga nem cria parcelas. Essa separação evita escrita
+dupla e risco de duplicação de parcelas.
+
 ### Vínculo entre instâncias de um lançamento recorrente
 Para implementar "editar afeta meses futuros" e "excluir remove instâncias
 futuras", é necessário um vínculo de dados entre as cópias de um mesmo lançamento
 recorrente ao longo dos meses. Sugestão: campo `grupo_recorrencia` (FK
 auto-referenciada para o lançamento "origem", ou um modelo `SerieRecorrente`
 separado que cada instância referencia).
+
+`PARCELA_CARTAO` **não** participa dessa cascata de recorrência — o ciclo de vida
+de uma parcela é de agenda de compra, não de template recorrente propagado.
+Os tipos recorrentes (propagados na abertura de mês e elegíveis para cascata de
+edição/exclusão) são: `RECEBIMENTO_FIXO`, `GASTO_FIXO` e `ASSINATURA`.
 
 ### Saldo encadeado entre meses
 Em vez de recalcular recursivamente o saldo desde o primeiro mês cadastrado toda
