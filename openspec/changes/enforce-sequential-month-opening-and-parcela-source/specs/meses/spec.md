@@ -1,6 +1,6 @@
 # Delta para Meses
 
-## REQUISITOS MODIFICADOS
+## MODIFIED Requirements
 
 ### Requirement: Criacao manual do mes
 O usuario SHALL decidir explicitamente quando criar um novo mes. O sistema SHALL

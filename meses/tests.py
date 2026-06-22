@@ -19,6 +19,17 @@ from meses.services import (
 )
 
 
+def _mes_atual():
+    hoje = date.today()
+    return hoje.year, hoje.month
+
+
+def _mes_seguinte(ano, mes):
+    if mes == 12:
+        return ano + 1, 1
+    return ano, mes + 1
+
+
 class MesesServicesTests(TestCase):
     def setUp(self):
         self.conta = Conta.objects.create(
@@ -29,43 +40,47 @@ class MesesServicesTests(TestCase):
         )
 
     def test_criar_primeiro_mes_sem_lancamentos_herda_saldo(self):
-        mes_aberto, criados, pendentes, _ = criar_mes(2026, 4)
-        self.assertEqual(str(mes_aberto), "04/2026")
+        """Task 5.5: Usa mes atual como base, herda saldo da conta."""
+        ano, mes = _mes_atual()
+        mes_aberto, criados, pendentes, _ = criar_mes(ano, mes)
+        self.assertEqual(str(mes_aberto), f"{mes:02d}/{ano}")
         self.assertEqual(len(criados), 0)
         self.assertEqual(pendentes.count(), 0)
-        saldo = SaldoMensalConta.objects.get(conta=self.conta, ano=2026, mes=4)
+        saldo = SaldoMensalConta.objects.get(conta=self.conta, ano=ano, mes=mes)
         self.assertEqual(saldo.saldo_inicial, Decimal("1000.00"))
 
-    def test_propaga_lancamentos_recorrentes_e_parcela(self):
-        criar_mes(2026, 4)
+    def test_propaga_lancamentos_recorrentes_e_nao_propaga_parcela(self):
+        """Task 5.5: RECEBIMENTO_FIXO propagado; PARCELA_CARTAO nao propagado."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        criar_mes(ano, mes)
         Lancamento.objects.create(
             descricao="Salario",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 5),
+            data_vencimento=date(ano, mes, 5),
             valor=Decimal("500.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=ano,
+            competencia_mes=mes,
         )
-        parcela = Lancamento.objects.create(
+        cartao = Conta.objects.create(nome="Cartao A", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        Lancamento.objects.create(
             descricao="Notebook 1/10",
             tipo=Lancamento.Tipo.PARCELA_CARTAO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(ano, mes, 10),
             valor=Decimal("100.00"),
-            conta=Conta.objects.create(nome="Cartao A", tipo=Conta.Tipo.CARTAO, dia_vencimento=10),
-            competencia_ano=2026,
-            competencia_mes=4,
+            conta=cartao,
+            competencia_ano=ano,
+            competencia_mes=mes,
             total_parcelas=10,
             parcela_atual=1,
             gerado_automaticamente=True,
         )
 
-        _, criados, _, _ = criar_mes(2026, 5)
+        _, criados, _, _ = criar_mes(ano2, mes2)
         tipos = {item.tipo for item in criados}
         self.assertIn(Lancamento.Tipo.RECEBIMENTO_FIXO, tipos)
-        self.assertIn(Lancamento.Tipo.PARCELA_CARTAO, tipos)
-        nova_parcela = Lancamento.objects.get(grupo_recorrencia=parcela.grupo_recorrencia, competencia_ano=2026, competencia_mes=5)
-        self.assertEqual(nova_parcela.parcela_atual, 2)
+        self.assertNotIn(Lancamento.Tipo.PARCELA_CARTAO, tipos)
 
     def test_edicao_recorrente_sobrescreve_instancias_futuras(self):
         origem = Lancamento.objects.create(
@@ -119,58 +134,66 @@ class MesesServicesTests(TestCase):
         self.assertFalse(Lancamento.objects.filter(descricao="Streaming").exists())
 
     def test_saldo_e_conciliacao(self):
-        criar_mes(2026, 4)
+        """Task 5.5: Usa mes atual como base para saldo e conciliacao."""
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
         Lancamento.objects.create(
             descricao="Entrada",
             tipo=Lancamento.Tipo.RECEBIMENTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(ano, mes, 10),
             valor=Decimal("80.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=ano,
+            competencia_mes=mes,
         )
         Lancamento.objects.create(
             descricao="Saida",
             tipo=Lancamento.Tipo.GASTO_FIXO,
-            data_vencimento=date(2026, 4, 10),
+            data_vencimento=date(ano, mes, 10),
             valor=Decimal("40.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=ano,
+            competencia_mes=mes,
         )
 
-        self.assertEqual(saldo_do_mes(self.conta, 2026, 4), Decimal("1040.00"))
-        _, conciliacao = ajustar_saldo_inicial(self.conta, 2026, 4, Decimal("980.00"))
+        self.assertEqual(saldo_do_mes(self.conta, ano, mes), Decimal("1040.00"))
+        _, conciliacao = ajustar_saldo_inicial(self.conta, ano, mes, Decimal("980.00"))
         self.assertIsNotNone(conciliacao)
         self.assertEqual(conciliacao.tipo, Lancamento.Tipo.CONCILIACAO)
 
     def test_pendente_do_mes_anterior(self):
-        criar_mes(2026, 4)
+        """Task 5.5: Usa cadeia de meses relativa ao mes atual."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        criar_mes(ano, mes)
         Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
             data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=ano,
+            competencia_mes=mes,
         )
 
-        _, _, pendentes, _ = criar_mes(2026, 5)
+        _, _, pendentes, _ = criar_mes(ano2, mes2)
         self.assertEqual(pendentes.count(), 1)
 
     def test_elegivel_para_transferencia_aceita_pendente_do_mes_anterior(self):
-        criar_mes(2026, 4)
+        """Task 5.5: Usa cadeia de meses relativa ao mes atual."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        criar_mes(ano, mes)
         pendente = Lancamento.objects.create(
             descricao="Conta atrasada",
             tipo=Lancamento.Tipo.GASTO_FIXO,
             data_vencimento=timezone.localdate() - timedelta(days=3),
             valor=Decimal("50.00"),
             conta=self.conta,
-            competencia_ano=2026,
-            competencia_mes=4,
+            competencia_ano=ano,
+            competencia_mes=mes,
         )
-        self.assertTrue(elegivel_para_transferencia(pendente, 2026, 5))
+        self.assertTrue(elegivel_para_transferencia(pendente, ano2, mes2))
 
     def test_elegivel_para_transferencia_rejeita_mes_nao_imediatamente_anterior(self):
         pendente = Lancamento.objects.create(
@@ -208,3 +231,89 @@ class MesesServicesTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             transferir_pendente_para_mes(nao_elegivel, 2026, 5)
+
+    # --- Novos testes para regras de sequencia (tasks 5.1, 5.2, 5.3) ---
+
+    def test_primeiro_mes_deve_ser_o_atual(self):
+        """Task 5.1: O primeiro mes aberto deve ser o mes atual."""
+        hoje = date.today()
+        # Escolher um mes diferente do atual
+        ano_outro = hoje.year
+        mes_outro = hoje.month - 1 if hoje.month > 1 else 12
+        if mes_outro == 12 and hoje.month == 1:
+            ano_outro -= 1
+
+        with self.assertRaises(ValidationError) as ctx:
+            criar_mes(ano_outro, mes_outro)
+        self.assertIn(f"{hoje.month:02d}/{hoje.year}", str(ctx.exception))
+
+    def test_nao_pode_pular_mes(self):
+        """Task 5.2: Nao e permitido pular meses apos o primeiro."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        ano3, mes3 = _mes_seguinte(ano2, mes2)
+        criar_mes(ano, mes)
+        with self.assertRaises(ValidationError) as ctx:
+            criar_mes(ano3, mes3)
+        self.assertIn(f"{mes2:02d}/{ano2}", str(ctx.exception))
+
+    def test_mes_imediatamente_seguinte_e_valido(self):
+        """Task 5.2: O mes imediatamente seguinte ao ultimo pode ser criado."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        criar_mes(ano, mes)
+        mes_aberto, _, _, _ = criar_mes(ano2, mes2)
+        self.assertEqual(str(mes_aberto), f"{mes2:02d}/{ano2}")
+
+    def test_abertura_de_mes_nao_cria_parcelas_duplicadas(self):
+        """Task 5.3: Abrir mes nao gera parcelas de cartao ja criadas pela compra."""
+        ano, mes = _mes_atual()
+        ano2, mes2 = _mes_seguinte(ano, mes)
+        criar_mes(ano, mes)
+        cartao = Conta.objects.create(nome="Cartao Reg", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        # Simula parcelas ja criadas pelo fluxo de compra para mes2
+        Lancamento.objects.create(
+            descricao="Notebook 1/3",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=date(ano, mes, 10),
+            valor=Decimal("100.00"),
+            conta=cartao,
+            competencia_ano=ano,
+            competencia_mes=mes,
+            total_parcelas=3,
+            parcela_atual=1,
+            gerado_automaticamente=True,
+        )
+        Lancamento.objects.create(
+            descricao="Notebook 2/3",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=date(ano2, mes2, 10),
+            valor=Decimal("100.00"),
+            conta=cartao,
+            competencia_ano=ano2,
+            competencia_mes=mes2,
+            total_parcelas=3,
+            parcela_atual=2,
+            gerado_automaticamente=True,
+        )
+        quantidade_antes = Lancamento.objects.filter(
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            competencia_ano=ano2,
+            competencia_mes=mes2,
+        ).count()
+        criar_mes(ano2, mes2)
+        quantidade_depois = Lancamento.objects.filter(
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            competencia_ano=ano2,
+            competencia_mes=mes2,
+        ).count()
+        self.assertEqual(quantidade_depois, quantidade_antes)
+
+    def test_criar_mes_idempotente_para_mes_ja_aberto(self):
+        """Task 1.3: Criar mes para um mes ja aberto e idempotente."""
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
+        # Segunda chamada nao deve levantar erro
+        mes_aberto, criados, _, _ = criar_mes(ano, mes)
+        self.assertEqual(str(mes_aberto), f"{mes:02d}/{ano}")
+        self.assertEqual(len(criados), 0)

@@ -4,13 +4,39 @@
 
 {% block content %}
 <section class="card">
-    <h2>Mes {{ mes }}/{{ ano }} ainda nao foi criado</h2>
+    <h2>Mes {{ mes|stringformat:"02d" }}/{{ ano }} ainda nao foi criado</h2>
     <p>Para visualizar e editar este mes, crie-o primeiro.</p>
+
+    {% if erro_validacao %}
+    <div class="alert alert-warning">
+        <p>{{ erro_validacao }}</p>
+    </div>
+    {% endif %}
+
+    {% if mes_permitido_ano and mes_permitido_mes %}
+        {% if mes_permitido_ano != ano or mes_permitido_mes != mes %}
+        <p>O mes que pode ser aberto agora e: <strong>{{ mes_permitido_mes|stringformat:"02d" }}/{{ mes_permitido_ano }}</strong>.</p>
+        <form method="post" action="{% url 'visualizacao:criar_mes' %}">
+            {% csrf_token %}
+            <input type="hidden" name="ano" value="{{ mes_permitido_ano }}">
+            <input type="hidden" name="mes" value="{{ mes_permitido_mes }}">
+            <button type="submit">Abrir {{ mes_permitido_mes|stringformat:"02d" }}/{{ mes_permitido_ano }}</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'visualizacao:criar_mes' %}">
+            {% csrf_token %}
+            <input type="hidden" name="ano" value="{{ ano }}">
+            <input type="hidden" name="mes" value="{{ mes }}">
+            <button type="submit">Criar mes</button>
+        </form>
+        {% endif %}
+    {% else %}
     <form method="post" action="{% url 'visualizacao:criar_mes' %}">
         {% csrf_token %}
         <input type="hidden" name="ano" value="{{ ano }}">
         <input type="hidden" name="mes" value="{{ mes }}">
         <button type="submit">Criar mes</button>
     </form>
+    {% endif %}
 </section>
 {% endblock %}

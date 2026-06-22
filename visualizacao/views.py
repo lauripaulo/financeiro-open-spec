@@ -14,6 +14,7 @@ from meses.services import (
     ajustar_saldo_inicial,
     criar_mes,
     mes_anterior_posterior,
+    mes_permitido_para_abertura,
     pendentes_mes_anterior,
     saldo_do_mes,
     saldo_investimento,
@@ -49,7 +50,17 @@ def _carregar_mes(ano, mes):
 def visao_consolidada(request):
     ano, mes = _filtros_mes(request)
     if not MesAberto.objects.filter(ano=ano, mes=mes).exists():
-        return render(request, "visualizacao/mes_nao_criado.html", {"ano": ano, "mes": mes})
+        ano_permitido, mes_permitido = mes_permitido_para_abertura()
+        return render(
+            request,
+            "visualizacao/mes_nao_criado.html",
+            {
+                "ano": ano,
+                "mes": mes,
+                "mes_permitido_ano": ano_permitido,
+                "mes_permitido_mes": mes_permitido,
+            },
+        )
 
     conta_id = request.GET.get("conta")
     status = _parse_status(request)
@@ -242,7 +253,22 @@ def ajustar_saldo(request, conta_id):
 @require_http_methods(["POST"])
 def criar_mes_view(request):
     ano, mes = _filtros_mes(request)
-    _, pendentes, aviso_limite = _carregar_mes(ano, mes)
+    try:
+        _, pendentes, aviso_limite = _carregar_mes(ano, mes)
+    except ValidationError as exc:
+        mensagem = " ".join(exc.messages)
+        ano_permitido, mes_permitido = mes_permitido_para_abertura()
+        return render(
+            request,
+            "visualizacao/mes_nao_criado.html",
+            {
+                "ano": ano,
+                "mes": mes,
+                "erro_validacao": mensagem,
+                "mes_permitido_ano": ano_permitido,
+                "mes_permitido_mes": mes_permitido,
+            },
+        )
     if aviso_limite:
         request.session["aviso_limite_meses"] = "Limite recomendado de 12 meses futuros foi ultrapassado."
     if pendentes.exists():
