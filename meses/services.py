@@ -79,9 +79,10 @@ def _validar_sequencia_mes(ano, mes):
     if MesAberto.objects.filter(ano=ano, mes=mes).exists():
         return  # idempotente: mes ja aberto, nada a fazer
 
-    hoje = date.today()
-    ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
+    from django.utils import timezone
 
+    hoje = timezone.localdate()
+    ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
     if ultimo is None:
         # Nenhum mes aberto: apenas o mes atual e permitido
         if (ano, mes) != (hoje.year, hoje.month):
