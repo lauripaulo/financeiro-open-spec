@@ -7,7 +7,6 @@ from django.utils import timezone
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
-from meses.models import MesAberto
 from meses.services import criar_mes, transferir_pendente_para_mes
 from visualizacao.templatetags.moeda import moeda
 from visualizacao.views import _filtros_mes
