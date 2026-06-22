@@ -5,7 +5,7 @@ Aportes e resgates em contas de investimento — bem como transferências entre 
 ## What Changes
 
 - Novo campo `lancamento_vinculado` no modelo `Lancamento`: auto-FK nullable que liga dois lançamentos como par de uma mesma operação financeira.
-- Ao setar o vínculo em um lado, o sistema seta automaticamente o vínculo reverso no outro (bidireccional, no `save()`).
+- Ao setar o vínculo em um lado, o sistema seta automaticamente o vínculo reverso no outro (bidirecional, no `save()`).
 - Validação: os dois lançamentos vinculados devem ter o mesmo valor absoluto — o sistema bloqueia o vínculo se os valores diferirem.
 - Ao excluir um lançamento que possui par vinculado, o sistema avisa e oferece a opção de excluir o par junto.
 - Campo de vínculo disponível no formulário de criação de lançamentos e no formulário de edição.
