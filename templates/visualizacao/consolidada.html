@@ -81,7 +81,7 @@
                 <td>{{ item.conta.nome }}</td>
                 <td>
                     {% if item.lancamento_vinculado %}
-                        {% if item.lancamento_vinculado.conta.tipo == "INVESTIMENTO" %}
+                        {% if item.direcao == "SAIDA" %}
                             &rarr; {{ item.lancamento_vinculado.conta.nome }}
                         {% else %}
                             &larr; {{ item.lancamento_vinculado.conta.nome }}
