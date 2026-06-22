@@ -16,6 +16,7 @@
                     <th>Descricao</th>
                     <th>Tipo</th>
                     <th>Valor</th>
+                    <th>Conta bancaria</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,9 +26,14 @@
                     <td>{{ mov.descricao }}</td>
                     <td>{{ mov.get_tipo_display }}</td>
                     <td>{{ mov.valor|moeda }}</td>
+                    <td>
+                        {% if mov.lancamento_vinculado %}
+                            {{ mov.lancamento_vinculado.conta.nome }}
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4">Sem movimentos.</td></tr>
+                <tr><td colspan="5">Sem movimentos.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

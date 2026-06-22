@@ -1,0 +1,18 @@
+<div class="alert warn">
+    <p>Este lancamento esta vinculado a <strong>{{ par.descricao }}</strong> ({{ par.conta.nome }}). O que deseja fazer?</p>
+    <form method="post" action="{% url 'lancamentos:excluir' lancamento.id %}"
+          hx-post="{% url 'lancamentos:excluir' lancamento.id %}"
+          hx-target="#flash-area" hx-swap="innerHTML"
+          style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="ignorar_par" value="1">
+        <button type="submit" class="secondary">Excluir somente este</button>
+    </form>
+    <form method="post" action="{% url 'lancamentos:excluir_par' lancamento.id %}"
+          hx-post="{% url 'lancamentos:excluir_par' lancamento.id %}"
+          hx-target="#flash-area" hx-swap="innerHTML"
+          style="display:inline;">
+        {% csrf_token %}
+        <button type="submit">Excluir os dois</button>
+    </form>
+</div>

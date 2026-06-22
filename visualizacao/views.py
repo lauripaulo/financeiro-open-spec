@@ -70,7 +70,7 @@ def visao_consolidada(request):
         competencia_ano=ano,
         competencia_mes=mes,
         conta__in=contas_base,
-    ).select_related("conta").order_by("data_vencimento", "id")
+    ).select_related("conta", "lancamento_vinculado__conta").order_by("data_vencimento", "id")
 
     if conta_id:
         lancamentos = lancamentos.filter(conta_id=conta_id)
@@ -156,7 +156,7 @@ def visao_patrimonio(request):
         lancamentos = Lancamento.objects.filter(
             conta=conta,
             tipo__in=[Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE],
-        ).order_by("data_vencimento")
+        ).select_related("lancamento_vinculado__conta").order_by("data_vencimento")
         dados.append(
             {
                 "conta": conta,
