@@ -100,6 +100,13 @@ class Lancamento(models.Model):
         blank=True,
         related_name="instancias_recorrentes",
     )
+    lancamento_vinculado = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="lancamento_par",
+    )
     total_parcelas = models.PositiveSmallIntegerField(null=True, blank=True)
     parcela_atual = models.PositiveSmallIntegerField(null=True, blank=True)
     gerado_automaticamente = models.BooleanField(default=False)
@@ -175,13 +182,63 @@ class Lancamento(models.Model):
         if self.tipo != self.Tipo.CONCILIACAO and self.valor < Decimal("0"):
             errors["valor"] = "Valor deve ser positivo para tipos diferentes de Conciliacao."
 
+        if self.lancamento_vinculado_id is not None:
+            if self.pk and self.lancamento_vinculado_id == self.pk:
+                errors["lancamento_vinculado"] = "Um lancamento nao pode ser vinculado a si mesmo."
+            elif self.valor is not None:
+                try:
+                    par = Lancamento.objects.get(pk=self.lancamento_vinculado_id)
+                    if abs(self.valor) != abs(par.valor):
+                        errors["lancamento_vinculado"] = (
+                            f"O valor do lancamento vinculado (R$ {abs(par.valor)}) deve ser "
+                            f"igual ao valor deste lancamento (R$ {abs(self.valor)})."
+                        )
+                except Lancamento.DoesNotExist:
+                    errors["lancamento_vinculado"] = "Lancamento vinculado nao encontrado."
+
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        # Track previous lancamento_vinculado for cleanup before saving
+        old_vinculado_id = None
+        if self.pk:
+            old_vinculado_id = (
+                Lancamento.objects.filter(pk=self.pk)
+                .values_list("lancamento_vinculado_id", flat=True)
+                .first()
+            )
+
         self.full_clean()
         resultado = super().save(*args, **kwargs)
         if self.is_recorrente and self.grupo_recorrencia_id is None:
             self.grupo_recorrencia = self
             super().save(update_fields=["grupo_recorrencia"])
+
+        # Sync lancamento_vinculado bidirectionally using queryset.update() to
+        # avoid triggering full_clean() recursively on the other side.
+        new_vinculado_id = self.lancamento_vinculado_id
+        if old_vinculado_id != new_vinculado_id:
+            # Clear old link if the old partner was pointing back at this instance
+            if old_vinculado_id is not None:
+                Lancamento.objects.filter(
+                    pk=old_vinculado_id, lancamento_vinculado_id=self.pk
+                ).update(lancamento_vinculado=None)
+
+            # Set new reverse link (cycle guard: skip if partner already points here)
+            if new_vinculado_id is not None:
+                parceiro_antigo_id = (
+                    Lancamento.objects.filter(pk=new_vinculado_id)
+                    .values_list("lancamento_vinculado_id", flat=True)
+                    .first()
+                )
+                if parceiro_antigo_id is not None and parceiro_antigo_id != self.pk:
+                    Lancamento.objects.filter(
+                        pk=parceiro_antigo_id, lancamento_vinculado_id=new_vinculado_id
+                    ).update(lancamento_vinculado=None)
+
+                Lancamento.objects.filter(pk=new_vinculado_id).exclude(
+                    lancamento_vinculado_id=self.pk
+                ).update(lancamento_vinculado=self.pk)
+
         return resultado

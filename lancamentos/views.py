@@ -48,7 +48,31 @@ def marcar_pago(request, pk):
 @require_http_methods(["POST"])
 def excluir_lancamento(request, pk):
     lancamento = get_object_or_404(Lancamento, pk=pk)
+    ignorar_par = request.POST.get("ignorar_par") == "1"
+
+    if lancamento.lancamento_vinculado_id and not ignorar_par:
+        par = lancamento.lancamento_vinculado
+        return render(
+            request,
+            "lancamentos/_confirmar_excluir_par.html",
+            {"lancamento": lancamento, "par": par},
+        )
+
     excluir_serie_futura(lancamento)
+    return HttpResponse(status=204)
+
+
+@require_http_methods(["POST"])
+def excluir_lancamento_par(request, pk):
+    lancamento = get_object_or_404(Lancamento, pk=pk)
+    par = lancamento.lancamento_vinculado
+    excluir_serie_futura(lancamento)
+    if par and par.pk:
+        try:
+            par.refresh_from_db()
+            excluir_serie_futura(par)
+        except Lancamento.DoesNotExist:
+            pass
     return HttpResponse(status=204)
 
 
@@ -73,6 +97,11 @@ def editar_lancamento(request, pk):
                     "tipo": atualizado.tipo,
                 }
                 atualizar_serie_futura(lancamento, **campos)
+                # Save lancamento_vinculado separately — not cascaded to recurring series
+                novo_vinculado = atualizado.lancamento_vinculado
+                if lancamento.lancamento_vinculado != novo_vinculado:
+                    lancamento.lancamento_vinculado = novo_vinculado
+                    lancamento.save(update_fields=["lancamento_vinculado"])
             return HttpResponse(status=204)
     else:
         form = LancamentoForm(instance=lancamento)

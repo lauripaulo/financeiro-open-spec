@@ -66,6 +66,7 @@
             <th>Entrada</th>
             <th>Saida</th>
             <th>Conta</th>
+            <th>Contraparte</th>
             <th>Data</th>
             <th>Status</th>
             <th>Acoes</th>
@@ -78,6 +79,15 @@
                 <td>{% if item.direcao == "ENTRADA" %}+{{ item.valor_absoluto|moeda }}{% endif %}</td>
                 <td>{% if item.direcao == "SAIDA" %}-{{ item.valor_absoluto|moeda }}{% endif %}</td>
                 <td>{{ item.conta.nome }}</td>
+                <td>
+                    {% if item.lancamento_vinculado %}
+                        {% if item.direcao == "SAIDA" %}
+                            &rarr; {{ item.lancamento_vinculado.conta.nome }}
+                        {% else %}
+                            &larr; {{ item.lancamento_vinculado.conta.nome }}
+                        {% endif %}
+                    {% endif %}
+                </td>
                 <td>{{ item.data_vencimento|date:"d/m/Y" }}</td>
                 <td><span class="status {{ item.status }}">{{ item.get_status_display }}</span></td>
                 <td class="actions">
@@ -96,7 +106,7 @@
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="7">Nenhum lancamento.</td></tr>
+            <tr><td colspan="8">Nenhum lancamento.</td></tr>
         {% endfor %}
         </tbody>
     </table>
