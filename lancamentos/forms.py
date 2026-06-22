@@ -29,11 +29,18 @@ class LancamentoForm(forms.ModelForm):
         self.fields["lancamento_vinculado"].required = False
         self.fields["lancamento_vinculado"].empty_label = "Nenhum"
         self.fields["lancamento_vinculado"].label = "Lancamento vinculado"
-        # Exclude self to prevent self-link; show all others ordered by date desc
-        base_qs = Lancamento.objects.order_by("-competencia_ano", "-competencia_mes", "descricao")
+        # Exclude self to prevent self-link; restrict to lancamentos ainda nao vinculados
+        base_qs = Lancamento.objects.order_by("-competencia_ano", "-competencia_mes", "-data_vencimento", "descricao")
         if self.instance.pk:
             base_qs = base_qs.exclude(pk=self.instance.pk)
-        self.fields["lancamento_vinculado"].queryset = base_qs
+
+        ids_disponiveis = list(
+            base_qs.filter(lancamento_vinculado__isnull=True).values_list("pk", flat=True)
+        )
+        if self.instance.lancamento_vinculado_id:
+            ids_disponiveis.append(self.instance.lancamento_vinculado_id)
+
+        self.fields["lancamento_vinculado"].queryset = base_qs.filter(pk__in=ids_disponiveis)
 
     def clean(self):
         cleaned_data = super().clean()
