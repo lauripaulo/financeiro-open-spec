@@ -26,8 +26,9 @@
         .status.PAGO { color: #047857; }
         form.inline { display: inline-flex; gap: 8px; align-items: center; }
         input, select, button { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        button { background: #0f766e; color: #fff; border-color: #0f766e; cursor: pointer; }
-        button.secondary { background: #fff; color: #0f766e; }
+        button, a.button { background: #0f766e; color: #fff; border-color: #0f766e; cursor: pointer; }
+        button.secondary, a.button.secondary { background: #fff; color: #0f766e; }
+        a.button { display: inline-block; padding: 8px 12px; border: 1px solid #0f766e; border-radius: 6px; text-decoration: none; }
         .money-field { display: inline-flex; align-items: stretch; }
         .money-field .money-prefix {
             display: flex; align-items: center;
@@ -56,7 +57,11 @@
     </nav>
 </header>
 <main class="container">
-    <div id="flash-area"></div>
+    <div id="flash-area">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}warn{% else %}info{% endif %}">{{ message }}</div>
+        {% endfor %}
+    </div>
     {% block content %}{% endblock %}
 </main>
 </body>

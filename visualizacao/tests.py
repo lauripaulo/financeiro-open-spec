@@ -295,7 +295,8 @@ class TransferirPendenteTests(TestCase):
     def test_transfere_lancamento_para_mes_atual(self):
         url = reverse("visualizacao:transferir_pendente", args=[self.lancamento.pk])
         response = self.client.post(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.headers["HX-Refresh"], "true")
         self.lancamento.refresh_from_db()
         self.assertEqual(self.lancamento.competencia_mes, self.mes2)
         self.assertEqual(self.lancamento.competencia_ano, self.ano2)
@@ -357,11 +358,11 @@ class ManterPendenteTests(TestCase):
             competencia_mes=3,
         )
 
-    def test_manter_pendente_retorna_flash(self):
+    def test_manter_pendente_retorna_refresh(self):
         url = reverse("visualizacao:manter_pendente", args=[self.lancamento.pk])
         response = self.client.post(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "visualizacao/_flash.html")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.headers["HX-Refresh"], "true")
 
     def test_retorna_400_para_pk_inexistente(self):
         url = reverse("visualizacao:manter_pendente", args=[99999])
@@ -379,11 +380,11 @@ class AjustarSaldoTests(TestCase):
         self.ano, self.mes = _mes_atual()
         criar_mes(self.ano, self.mes)
 
-    def test_ajuste_valido_retorna_flash(self):
+    def test_ajuste_valido_retorna_refresh(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
         response = self.client.post(url, {"novo_saldo": "600.00", "ano": str(self.ano), "mes": str(self.mes)})
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "visualizacao/_flash.html")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.headers["HX-Refresh"], "true")
 
     def test_campo_ausente_retorna_400(self):
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
@@ -417,7 +418,7 @@ class AjustarSaldoTests(TestCase):
         )
         url = reverse("visualizacao:ajustar_saldo", args=[self.conta.pk])
         response = self.client.post(url, {"novo_saldo": "450.00", "ano": str(self.ano), "mes": str(self.mes)})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 204)
         self.assertTrue(
             Lancamento.objects.filter(conta=self.conta, tipo=Lancamento.Tipo.CONCILIACAO).exists()
         )

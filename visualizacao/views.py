@@ -1,8 +1,9 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -20,6 +21,13 @@ from meses.services import (
     saldo_investimento,
     transferir_pendente_para_mes,
 )
+
+
+def _erro(request, mensagem):
+    if request.headers.get("HX-Request"):
+        messages.error(request, mensagem)
+        return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+    return HttpResponseBadRequest(mensagem)
 
 
 def _filtros_mes(request):
@@ -208,22 +216,21 @@ def transferir_pendente(request, pk):
     try:
         lancamento = Lancamento.objects.get(pk=pk)
     except Lancamento.DoesNotExist:
-        return HttpResponseBadRequest("Lancamento nao encontrado.")
+        return _erro(request, "Lancamento nao encontrado.")
     try:
         transferir_pendente_para_mes(lancamento, ano, mes)
     except ValidationError as exc:
-        mensagem = " ".join(exc.messages)
-        if request.headers.get("HX-Request"):
-            return render(request, "visualizacao/_flash.html", {"mensagem": mensagem})
-        return HttpResponseBadRequest(mensagem)
-    return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento transferido para o mes atual."})
+        return _erro(request, " ".join(exc.messages))
+    messages.success(request, "Lancamento transferido para o mes atual.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
 def manter_pendente(request, pk):
     if not Lancamento.objects.filter(pk=pk).exists():
-        return HttpResponseBadRequest("Lancamento nao encontrado.")
-    return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento mantido no mes anterior."})
+        return _erro(request, "Lancamento nao encontrado.")
+    messages.success(request, "Lancamento mantido no mes anterior.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
@@ -231,23 +238,24 @@ def ajustar_saldo(request, conta_id):
     ano, mes = _filtros_mes(request)
     novo_saldo = request.POST.get("novo_saldo")
     if not novo_saldo:
-        return HttpResponseBadRequest("Campo novo_saldo e obrigatorio.")
+        return _erro(request, "Campo novo_saldo e obrigatorio.")
 
     try:
         conta = Conta.objects.get(pk=conta_id)
     except Conta.DoesNotExist:
-        return HttpResponseBadRequest("Conta nao encontrada.")
+        return _erro(request, "Conta nao encontrada.")
 
     try:
         saldo_decimal = Decimal(novo_saldo)
     except Exception:
-        return HttpResponseBadRequest("Campo novo_saldo deve ser um decimal valido.")
+        return _erro(request, "Campo novo_saldo deve ser um decimal valido.")
 
     _, conciliacao = ajustar_saldo_inicial(conta, ano, mes, saldo_decimal)
     mensagem = "Saldo inicial atualizado."
     if conciliacao:
         mensagem += " Lancamento de Conciliacao gerado automaticamente."
-    return render(request, "visualizacao/_flash.html", {"mensagem": mensagem})
+    messages.success(request, mensagem)
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])

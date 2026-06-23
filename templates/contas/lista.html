@@ -7,7 +7,7 @@
 <section class="card">
     <h2>Contas</h2>
     <div style="margin-bottom:12px;">
-        <a href="{% url 'contas:criar' %}">Nova conta</a>
+        <a class="button" href="{% url 'contas:criar' %}">Nova conta</a>
     </div>
 
     {% if erro_exclusao %}
@@ -34,8 +34,8 @@
                 <td>{{ conta.limite_negativo|moeda }}</td>
                 <td>{{ conta.dia_vencimento|default:"-" }}</td>
                 <td class="actions">
-                    <a href="{% url 'contas:editar' conta.id %}">Editar</a>
-                    <form method="post" action="{% url 'contas:excluir' conta.id %}" class="inline">
+                    <a class="button" href="{% url 'contas:editar' conta.id %}">Editar</a>
+                    <form method="post" action="{% url 'contas:excluir' conta.id %}" class="inline" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
                         {% csrf_token %}
                         <button type="submit" class="secondary">Excluir</button>
                     </form>
