@@ -1,8 +1,9 @@
 from datetime import date
 from decimal import Decimal
 
+from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -212,18 +213,17 @@ def transferir_pendente(request, pk):
     try:
         transferir_pendente_para_mes(lancamento, ano, mes)
     except ValidationError as exc:
-        mensagem = " ".join(exc.messages)
-        if request.headers.get("HX-Request"):
-            return render(request, "visualizacao/_flash.html", {"mensagem": mensagem})
-        return HttpResponseBadRequest(mensagem)
-    return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento transferido para o mes atual."})
+        return HttpResponseBadRequest(" ".join(exc.messages))
+    messages.success(request, "Lancamento transferido para o mes atual.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
 def manter_pendente(request, pk):
     if not Lancamento.objects.filter(pk=pk).exists():
         return HttpResponseBadRequest("Lancamento nao encontrado.")
-    return render(request, "visualizacao/_flash.html", {"mensagem": "Lancamento mantido no mes anterior."})
+    messages.success(request, "Lancamento mantido no mes anterior.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
@@ -247,7 +247,8 @@ def ajustar_saldo(request, conta_id):
     mensagem = "Saldo inicial atualizado."
     if conciliacao:
         mensagem += " Lancamento de Conciliacao gerado automaticamente."
-    return render(request, "visualizacao/_flash.html", {"mensagem": mensagem})
+    messages.success(request, mensagem)
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])

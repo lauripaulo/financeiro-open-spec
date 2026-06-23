@@ -12,6 +12,7 @@ class LancamentoForm(forms.ModelForm):
         fields = ["descricao", "tipo", "data_vencimento", "valor", "conta", "lancamento_vinculado"]
         widgets = {
             "valor": MoedaWidget(),
+            "data_vencimento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
     TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL = {
@@ -79,7 +80,7 @@ class LancamentoForm(forms.ModelForm):
 
 
 class MarcarPagoForm(forms.Form):
-    data_pagamento = forms.DateField()
+    data_pagamento = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
 
 
 class CompraParceladaForm(forms.Form):
@@ -87,7 +88,7 @@ class CompraParceladaForm(forms.Form):
     valor_total = forms.DecimalField(max_digits=14, decimal_places=2, widget=MoedaWidget())
     total_parcelas = forms.IntegerField(min_value=2, max_value=120)
     conta = forms.ModelChoiceField(queryset=Conta.objects.filter(tipo=Conta.Tipo.CARTAO).order_by("nome"))
-    data_compra = forms.DateField()
+    data_compra = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
 
     def save(self):
         return gerar_parcelas_da_compra(

@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
@@ -42,7 +43,8 @@ def marcar_pago(request, pk):
         return HttpResponseBadRequest("Data de pagamento invalida.")
     lancamento.data_pagamento = form.cleaned_data["data_pagamento"]
     lancamento.save(update_fields=["data_pagamento"])
-    return HttpResponse(status=204)
+    messages.success(request, "Lancamento marcado como pago.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
@@ -59,7 +61,8 @@ def excluir_lancamento(request, pk):
         )
 
     excluir_serie_futura(lancamento)
-    return HttpResponse(status=204)
+    messages.success(request, "Lancamento excluido.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["POST"])
@@ -73,7 +76,8 @@ def excluir_lancamento_par(request, pk):
             excluir_serie_futura(par)
         except Lancamento.DoesNotExist:
             pass
-    return HttpResponse(status=204)
+    messages.success(request, "Lancamentos excluidos.")
+    return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
 
 @require_http_methods(["GET", "POST"])
@@ -102,7 +106,10 @@ def editar_lancamento(request, pk):
                 if lancamento.lancamento_vinculado != novo_vinculado:
                     lancamento.lancamento_vinculado = novo_vinculado
                     lancamento.save(update_fields=["lancamento_vinculado"])
-            return HttpResponse(status=204)
+            if request.headers.get("HX-Request"):
+                messages.success(request, "Lancamento atualizado.")
+                return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+            return redirect(f"/?ano={lancamento.competencia_ano}&mes={lancamento.competencia_mes}")
     else:
         form = LancamentoForm(instance=lancamento)
 
@@ -119,11 +126,15 @@ def editar_lancamento(request, pk):
 
 @require_http_methods(["GET", "POST"])
 def criar_compra_parcelada(request):
+    ano, mes = _contexto_mes(request)
+
     if request.method == "POST":
         form = CompraParceladaForm(request.POST)
         if form.is_valid():
             form.save()
-            return HttpResponse(status=204)
+            if request.headers.get("HX-Request"):
+                return HttpResponse(status=204)
+            return redirect(f"/?ano={ano}&mes={mes}")
     else:
         form = CompraParceladaForm()
 

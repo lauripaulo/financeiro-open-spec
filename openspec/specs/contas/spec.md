@@ -76,7 +76,9 @@ associados a conta.
 ### Requirement: Cadastro de contas no fluxo principal da aplicacao
 O sistema SHALL oferecer, no fluxo principal da aplicacao (fora do Django Admin),
 telas para criar, editar e excluir contas dos tipos Cartao, Banco e Investimento,
-reutilizando as mesmas validacoes de dominio ja definidas para cada tipo.
+reutilizando as mesmas validacoes de dominio ja definidas para cada tipo. A acao de
+excluir uma conta SHALL exigir confirmacao explicita do usuario antes de ser
+executada.
 
 #### Scenario: Usuario cria conta Banco pela aplicacao
 - **WHEN** o usuario acessa a tela de contas e cadastra uma conta Banco com nome,
@@ -91,6 +93,11 @@ reutilizando as mesmas validacoes de dominio ja definidas para cada tipo.
 - **WHEN** o usuario tenta excluir uma conta que possui lancamentos associados
 - **THEN** o sistema SHALL bloquear a exclusao
 - **AND** SHALL exibir mensagem explicando o motivo do bloqueio
+
+#### Scenario: Exclusao de conta exige confirmacao
+- **WHEN** o usuario aciona "Excluir" em uma conta sem lancamentos associados
+- **THEN** o sistema SHALL solicitar confirmacao explicita do usuario
+- **AND** SHALL somente excluir a conta apos a confirmacao
 
 ### Requirement: Saldo de conta Investimento tratado separadamente
 O sistema SHALL calcular e exibir o saldo acumulado de uma conta Investimento de

@@ -56,8 +56,8 @@
 <section class="card">
     <h3>Movimentacoes</h3>
     <div style="margin-bottom:12px;display:flex;gap:8px;">
-        <a href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">Novo lancamento</a>
-        <a href="{% url 'lancamentos:compra_parcelada' %}">Nova compra parcelada</a>
+        <a class="button" href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">Novo lancamento</a>
+        <a class="button" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}">Nova compra parcelada</a>
     </div>
     <table>
         <thead>
@@ -98,8 +98,8 @@
                         <button type="submit">Pagar</button>
                     </form>
                     {% endif %}
-                    <a href="{% url 'lancamentos:editar' item.id %}">Editar</a>
-                    <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                    <a class="button" href="{% url 'lancamentos:editar' item.id %}">Editar</a>
+                    <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" hx-confirm="Tem certeza que deseja excluir este lancamento?">
                         {% csrf_token %}
                         <button type="submit" class="secondary">Excluir</button>
                     </form>
