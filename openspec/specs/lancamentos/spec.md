@@ -10,7 +10,9 @@ Todo lancamento SHALL possuir: Descricao, Tipo, Data de vencimento, Data de paga
 (preenchida apenas ao marcar como Pago), Valor, Conta, Lancamento Vinculado (opcional,
 referencia ao lancamento par da mesma operacao financeira) e Status (somente leitura,
 calculado pelo sistema). O pagamento de um lancamento SHALL ser sempre integral;
-pagamento parcial nao e suportado.
+pagamento parcial nao e suportado. Quando houver dados invalidos no formulario de
+lancamento, o sistema SHALL retornar erros de validacao ao usuario e SHALL NOT
+levantar erro interno por ausencia de relacao `conta` durante a validacao.
 
 #### Scenario: Criacao de um lancamento simples
 - GIVEN uma conta ja cadastrada
@@ -25,6 +27,12 @@ pagamento parcial nao e suportado.
 - WHEN o usuario registra um novo lancamento A informando B como lancamento vinculado
 - THEN o sistema SHALL criar A com lancamento_vinculado apontando para B
 - AND SHALL automaticamente definir B.lancamento_vinculado como A
+
+#### Scenario: Submissao invalida com tipo incompativel nao causa erro interno
+- GIVEN uma conta do tipo Banco existente
+- WHEN o usuario envia um novo lancamento com tipo APORTE para essa conta
+- THEN o sistema SHALL rejeitar a submissao com erro de validacao no formulario
+- AND SHALL NOT gerar excecao interna por ausencia de `conta` durante model clean
 
 ### Requirement: Tipos de lancamento suportados
 O sistema SHALL suportar os seguintes tipos de lancamento, cada um com uma direcao

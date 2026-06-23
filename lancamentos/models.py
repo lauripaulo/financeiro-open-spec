@@ -148,17 +148,23 @@ class Lancamento(models.Model):
 
     def clean(self):
         errors = {}
+        conta_tipo = None
 
         if not 1 <= self.competencia_mes <= 12:
             errors["competencia_mes"] = "Mes de competencia deve estar entre 1 e 12."
 
+        if self.conta_id is not None:
+            try:
+                conta_tipo = self.conta.tipo
+            except Conta.DoesNotExist:
+                errors["conta"] = "Conta informada nao encontrada."
         if self.tipo == self.Tipo.CONCILIACAO and not self.gerado_automaticamente:
             errors["tipo"] = "Conciliacao e criada apenas automaticamente pelo sistema."
 
-        if self.tipo in {self.Tipo.APORTE, self.Tipo.RESGATE} and self.conta.tipo != Conta.Tipo.INVESTIMENTO:
+        if conta_tipo is not None and self.tipo in {self.Tipo.APORTE, self.Tipo.RESGATE} and conta_tipo != Conta.Tipo.INVESTIMENTO:
             errors["tipo"] = "Aporte e Resgate sao exclusivos de contas Investimento."
 
-        if self.conta.tipo == Conta.Tipo.INVESTIMENTO and self.tipo not in {
+        if conta_tipo == Conta.Tipo.INVESTIMENTO and self.tipo not in {
             self.Tipo.APORTE,
             self.Tipo.RESGATE,
             self.Tipo.CONCILIACAO,
@@ -166,7 +172,7 @@ class Lancamento(models.Model):
             errors["tipo"] = "Conta Investimento aceita apenas Aporte, Resgate e Conciliacao automatica."
 
         if self.tipo == self.Tipo.PARCELA_CARTAO:
-            if self.conta.tipo != Conta.Tipo.CARTAO:
+            if conta_tipo != Conta.Tipo.CARTAO:
                 errors["conta"] = "Parcela de Cartao exige conta do tipo Cartao."
             if not self.total_parcelas or not self.parcela_atual:
                 errors["total_parcelas"] = "Parcela de Cartao exige total_parcelas e parcela_atual."

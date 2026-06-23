@@ -191,6 +191,40 @@ class CriarLancamentoViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("descricao", response.context["form"].errors)
 
+    def test_form_aporte_em_conta_nao_investimento_nao_gera_relatedobjectdoesnotexist(self):
+        hoje = date.today()
+        instancia = Lancamento(competencia_ano=hoje.year, competencia_mes=hoje.month)
+        form = LancamentoForm(
+            data={
+                "descricao": "Aporte invalido",
+                "tipo": Lancamento.Tipo.APORTE,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.conta.pk,
+            },
+            instance=instancia,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("conta", form.errors)
+
+    def test_criar_lancamento_aporte_invalido_retorna_200_com_erros(self):
+        hoje = date.today()
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Aporte invalido",
+                "tipo": Lancamento.Tipo.APORTE,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.conta.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("conta", response.context["form"].errors)
+
 
 # ---------------------------------------------------------------------------
 # Testes: lancamento_vinculado — sincronização bidirecional
