@@ -153,14 +153,11 @@ class Lancamento(models.Model):
         if not 1 <= self.competencia_mes <= 12:
             errors["competencia_mes"] = "Mes de competencia deve estar entre 1 e 12."
 
-        if self.conta_id is None:
-            errors["conta"] = "Conta e obrigatoria."
-        else:
+        if self.conta_id is not None:
             try:
                 conta_tipo = self.conta.tipo
             except Conta.DoesNotExist:
                 errors["conta"] = "Conta informada nao encontrada."
-
         if self.tipo == self.Tipo.CONCILIACAO and not self.gerado_automaticamente:
             errors["tipo"] = "Conciliacao e criada apenas automaticamente pelo sistema."
 
