@@ -23,6 +23,13 @@ from meses.services import (
 )
 
 
+def _erro(request, mensagem):
+    if request.headers.get("HX-Request"):
+        messages.error(request, mensagem)
+        return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+    return HttpResponseBadRequest(mensagem)
+
+
 def _filtros_mes(request):
     hoje = date.today()
     try:
@@ -209,11 +216,11 @@ def transferir_pendente(request, pk):
     try:
         lancamento = Lancamento.objects.get(pk=pk)
     except Lancamento.DoesNotExist:
-        return HttpResponseBadRequest("Lancamento nao encontrado.")
+        return _erro(request, "Lancamento nao encontrado.")
     try:
         transferir_pendente_para_mes(lancamento, ano, mes)
     except ValidationError as exc:
-        return HttpResponseBadRequest(" ".join(exc.messages))
+        return _erro(request, " ".join(exc.messages))
     messages.success(request, "Lancamento transferido para o mes atual.")
     return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
@@ -221,7 +228,7 @@ def transferir_pendente(request, pk):
 @require_http_methods(["POST"])
 def manter_pendente(request, pk):
     if not Lancamento.objects.filter(pk=pk).exists():
-        return HttpResponseBadRequest("Lancamento nao encontrado.")
+        return _erro(request, "Lancamento nao encontrado.")
     messages.success(request, "Lancamento mantido no mes anterior.")
     return HttpResponse(status=204, headers={"HX-Refresh": "true"})
 
@@ -231,17 +238,17 @@ def ajustar_saldo(request, conta_id):
     ano, mes = _filtros_mes(request)
     novo_saldo = request.POST.get("novo_saldo")
     if not novo_saldo:
-        return HttpResponseBadRequest("Campo novo_saldo e obrigatorio.")
+        return _erro(request, "Campo novo_saldo e obrigatorio.")
 
     try:
         conta = Conta.objects.get(pk=conta_id)
     except Conta.DoesNotExist:
-        return HttpResponseBadRequest("Conta nao encontrada.")
+        return _erro(request, "Conta nao encontrada.")
 
     try:
         saldo_decimal = Decimal(novo_saldo)
     except Exception:
-        return HttpResponseBadRequest("Campo novo_saldo deve ser um decimal valido.")
+        return _erro(request, "Campo novo_saldo deve ser um decimal valido.")
 
     _, conciliacao = ajustar_saldo_inicial(conta, ano, mes, saldo_decimal)
     mensagem = "Saldo inicial atualizado."

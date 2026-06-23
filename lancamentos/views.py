@@ -11,6 +11,13 @@ from lancamentos.models import Lancamento
 from meses.services import excluir_serie_futura, atualizar_serie_futura
 
 
+def _erro(request, mensagem):
+    if request.headers.get("HX-Request"):
+        messages.error(request, mensagem)
+        return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+    return HttpResponseBadRequest(mensagem)
+
+
 def _contexto_mes(request):
     hoje = date.today()
     ano = int(request.GET.get("ano", hoje.year))
@@ -40,7 +47,7 @@ def marcar_pago(request, pk):
     lancamento = get_object_or_404(Lancamento, pk=pk)
     form = MarcarPagoForm(request.POST)
     if not form.is_valid():
-        return HttpResponseBadRequest("Data de pagamento invalida.")
+        return _erro(request, "Data de pagamento invalida.")
     lancamento.data_pagamento = form.cleaned_data["data_pagamento"]
     lancamento.save(update_fields=["data_pagamento"])
     messages.success(request, "Lancamento marcado como pago.")
