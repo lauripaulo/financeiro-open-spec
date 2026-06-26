@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="card">
-    <h2>Visao de patrimonio</h2>
+    <h2>Visao de patrimonio: Total {{ total_patrimonio|moeda }}</h2>
     {% for item in dados %}
     <article class="card">
         <h3>{{ item.conta.nome }} - Saldo acumulado: {{ item.saldo|moeda }}</h3>

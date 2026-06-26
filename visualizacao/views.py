@@ -160,7 +160,9 @@ def visao_consolidada(request):
 def visao_patrimonio(request):
     contas = Conta.objects.filter(tipo=Conta.Tipo.INVESTIMENTO).order_by("nome")
     dados = []
+    total_patrimonio = Decimal("0.00")
     for conta in contas:
+        saldo = saldo_investimento(conta)
         lancamentos = Lancamento.objects.filter(
             conta=conta,
             tipo__in=[Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE],
@@ -168,11 +170,19 @@ def visao_patrimonio(request):
         dados.append(
             {
                 "conta": conta,
-                "saldo": saldo_investimento(conta),
+                "saldo": saldo,
                 "movimentos": lancamentos,
             }
         )
-    return render(request, "visualizacao/patrimonio.html", {"dados": dados})
+        total_patrimonio += saldo
+    return render(
+        request,
+        "visualizacao/patrimonio.html",
+        {
+            "dados": dados,
+            "total_patrimonio": total_patrimonio,
+        },
+    )
 
 
 @require_http_methods(["GET"])

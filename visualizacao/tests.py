@@ -270,6 +270,29 @@ class VisaoPatrimonioTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "R$ 1.234,56")
 
+    def test_titulo_exibe_total_consolidado_das_contas_investimento(self):
+        Conta.objects.create(
+            nome="Invest A",
+            tipo=Conta.Tipo.INVESTIMENTO,
+            saldo_atual=Decimal("100000.00"),
+        )
+        Conta.objects.create(
+            nome="Invest B",
+            tipo=Conta.Tipo.INVESTIMENTO,
+            saldo_atual=Decimal("80023.23"),
+        )
+
+        response = self.client.get(reverse("visualizacao:patrimonio"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Visao de patrimonio: Total R$ 180.023,23")
+
+    def test_titulo_exibe_total_zerado_sem_contas_investimento(self):
+        response = self.client.get(reverse("visualizacao:patrimonio"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Visao de patrimonio: Total R$ 0,00")
+
 
 class TransferirPendenteTests(TestCase):
     def setUp(self):
