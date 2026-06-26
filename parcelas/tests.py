@@ -1,10 +1,12 @@
 from datetime import date
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
+from parcelas.models import CompraParcelada
 from parcelas.services import gerar_parcelas_da_compra
 
 
@@ -30,3 +32,77 @@ class ParcelasTests(TestCase):
         self.assertEqual(parcelas.first().data_vencimento, date(2026, 2, 10))
         self.assertEqual(parcelas.last().descricao, "Compra de notebook 10/10")
         self.assertEqual(parcelas.last().data_vencimento, date(2026, 11, 10))
+
+    def test_gera_somente_parcelas_restantes_quando_ha_parcelas_pagas(self):
+        conta = Conta.objects.create(
+            nome="Cartao Restante",
+            tipo=Conta.Tipo.CARTAO,
+            dia_vencimento=10,
+        )
+
+        gerar_parcelas_da_compra(
+            descricao="Compra de notebook",
+            valor_total=Decimal("100.00"),
+            total_parcelas=10,
+            parcelas_pagas=3,
+            conta=conta,
+            data_compra=date(2026, 1, 15),
+        )
+
+        parcelas = Lancamento.objects.filter(tipo=Lancamento.Tipo.PARCELA_CARTAO).order_by("parcela_atual")
+        self.assertEqual(parcelas.count(), 7)
+        self.assertEqual(parcelas.first().descricao, "Compra de notebook 4/10")
+        self.assertEqual(parcelas.first().parcela_atual, 4)
+        self.assertEqual(parcelas.first().data_vencimento, date(2026, 5, 10))
+        self.assertEqual(parcelas.last().descricao, "Compra de notebook 10/10")
+        self.assertEqual(parcelas.last().parcela_atual, 10)
+
+    def test_rejeita_quando_todas_parcelas_ja_foram_pagas(self):
+        conta = Conta.objects.create(
+            nome="Cartao Completo",
+            tipo=Conta.Tipo.CARTAO,
+            dia_vencimento=10,
+        )
+
+        with self.assertRaises(ValidationError):
+            gerar_parcelas_da_compra(
+                descricao="Compra quitada",
+                valor_total=Decimal("100.00"),
+                total_parcelas=10,
+                parcelas_pagas=10,
+                conta=conta,
+                data_compra=date(2026, 1, 15),
+            )
+
+        self.assertEqual(CompraParcelada.objects.count(), 0)
+        self.assertEqual(Lancamento.objects.filter(tipo=Lancamento.Tipo.PARCELA_CARTAO).count(), 0)
+
+    def test_rejeita_quando_parcelas_pagas_fora_da_faixa(self):
+        conta = Conta.objects.create(
+            nome="Cartao Faixa",
+            tipo=Conta.Tipo.CARTAO,
+            dia_vencimento=10,
+        )
+
+        with self.assertRaises(ValidationError):
+            gerar_parcelas_da_compra(
+                descricao="Compra invalida negativo",
+                valor_total=Decimal("100.00"),
+                total_parcelas=10,
+                parcelas_pagas=-1,
+                conta=conta,
+                data_compra=date(2026, 1, 15),
+            )
+
+        with self.assertRaises(ValidationError):
+            gerar_parcelas_da_compra(
+                descricao="Compra invalida acima",
+                valor_total=Decimal("100.00"),
+                total_parcelas=10,
+                parcelas_pagas=11,
+                conta=conta,
+                data_compra=date(2026, 1, 15),
+            )
+
+        self.assertEqual(CompraParcelada.objects.count(), 0)
+        self.assertEqual(Lancamento.objects.filter(tipo=Lancamento.Tipo.PARCELA_CARTAO).count(), 0)

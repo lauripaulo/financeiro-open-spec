@@ -87,14 +87,32 @@ class CompraParceladaForm(forms.Form):
     descricao = forms.CharField(max_length=180)
     valor_total = forms.DecimalField(max_digits=14, decimal_places=2, widget=MoedaWidget())
     total_parcelas = forms.IntegerField(min_value=2, max_value=120)
+    parcelas_pagas = forms.IntegerField(min_value=0, initial=0)
     conta = forms.ModelChoiceField(queryset=Conta.objects.filter(tipo=Conta.Tipo.CARTAO).order_by("nome"))
     data_compra = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+
+    def clean(self):
+        cleaned_data = super().clean()
+        total_parcelas = cleaned_data.get("total_parcelas")
+        parcelas_pagas = cleaned_data.get("parcelas_pagas")
+
+        if total_parcelas is None or parcelas_pagas is None:
+            return cleaned_data
+
+        if parcelas_pagas > total_parcelas:
+            self.add_error("parcelas_pagas", "Parcelas pagas nao pode ser maior que o total de parcelas.")
+
+        if parcelas_pagas == total_parcelas:
+            self.add_error("parcelas_pagas", "Nao ha parcelas a gerar para esta compra.")
+
+        return cleaned_data
 
     def save(self):
         return gerar_parcelas_da_compra(
             descricao=self.cleaned_data["descricao"],
             valor_total=self.cleaned_data["valor_total"],
             total_parcelas=self.cleaned_data["total_parcelas"],
+            parcelas_pagas=self.cleaned_data["parcelas_pagas"],
             conta=self.cleaned_data["conta"],
             data_compra=self.cleaned_data["data_compra"],
         )

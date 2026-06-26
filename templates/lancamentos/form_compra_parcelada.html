@@ -11,4 +11,40 @@
         <button type="submit">Gerar parcelas</button>
     </form>
 </section>
+
+<script>
+    (function () {
+        function setupParcelasPagasField() {
+            var totalParcelasInput = document.getElementById("id_total_parcelas");
+            var parcelasPagasInput = document.getElementById("id_parcelas_pagas");
+            if (!totalParcelasInput || !parcelasPagasInput) {
+                return;
+            }
+
+            function syncMaxAndClamp() {
+                var total = parseInt(totalParcelasInput.value, 10);
+                if (Number.isNaN(total)) {
+                    return;
+                }
+
+                parcelasPagasInput.max = String(total);
+
+                var pagas = parseInt(parcelasPagasInput.value, 10);
+                if (Number.isNaN(pagas) || pagas < 0) {
+                    parcelasPagasInput.value = "0";
+                    return;
+                }
+
+                if (pagas > total) {
+                    parcelasPagasInput.value = String(total);
+                }
+            }
+
+            totalParcelasInput.addEventListener("input", syncMaxAndClamp);
+            syncMaxAndClamp();
+        }
+
+        document.addEventListener("DOMContentLoaded", setupParcelasPagasField);
+    })();
+</script>
 {% endblock %}
