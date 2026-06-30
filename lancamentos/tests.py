@@ -152,6 +152,52 @@ class LancamentoFormTiposExcluidosTests(TestCase):
         self.assertIn("tipo", form.errors)
         self.assertFalse(Lancamento.objects.filter(tipo=Lancamento.Tipo.PARCELA_CARTAO).exists())
 
+    def test_editar_parcela_cartao_existente_com_sucesso(self):
+        hoje = date.today()
+        p = Lancamento.objects.create(
+            descricao="Parcela Original 1/2",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=hoje,
+            valor=Decimal("50.00"),
+            conta=self.conta_cartao,
+            competencia_ano=hoje.year,
+            competencia_mes=hoje.month,
+            total_parcelas=2,
+            parcela_atual=1
+        )
+        form = LancamentoForm(
+            data={
+                "descricao": "Parcela Editada 1/2",
+                "tipo": Lancamento.Tipo.PARCELA_CARTAO,
+                "data_vencimento": hoje,
+                "valor": "60.00",
+                "conta": self.conta_cartao.pk,
+            },
+            instance=p,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        salvo = form.save()
+        self.assertEqual(salvo.descricao, "Parcela Editada 1/2")
+        self.assertEqual(salvo.valor, Decimal("60.00"))
+        self.assertEqual(salvo.tipo, Lancamento.Tipo.PARCELA_CARTAO)
+
+    def test_editar_parcela_cartao_desabilita_campo_tipo(self):
+        hoje = date.today()
+        p = Lancamento.objects.create(
+            descricao="Parcela Original 1/2",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=hoje,
+            valor=Decimal("50.00"),
+            conta=self.conta_cartao,
+            competencia_ano=hoje.year,
+            competencia_mes=hoje.month,
+            total_parcelas=2,
+            parcela_atual=1
+        )
+        form = LancamentoForm(instance=p)
+        self.assertTrue(form.fields["tipo"].disabled)
+
+
 
 class CriarLancamentoViewTests(TestCase):
     def setUp(self):

@@ -22,10 +22,15 @@ class LancamentoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        excluidos = self.TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL.copy()
+        if self.instance.pk and self.instance.tipo in excluidos:
+            excluidos.remove(self.instance.tipo)
+            self.fields["tipo"].disabled = True
+
         self.fields["tipo"].choices = [
             escolha
             for escolha in self.fields["tipo"].choices
-            if escolha[0] not in self.TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL
+            if escolha[0] not in excluidos
         ]
         self.fields["lancamento_vinculado"].required = False
         self.fields["lancamento_vinculado"].empty_label = "Nenhum"
@@ -50,14 +55,15 @@ class LancamentoForm(forms.ModelForm):
         valor = cleaned_data.get("valor")
         lancamento_vinculado = cleaned_data.get("lancamento_vinculado")
 
-        if tipo == Lancamento.Tipo.CONCILIACAO:
-            self.add_error("tipo", "Conciliacao e gerada automaticamente pelo sistema.")
+        if not self.instance.pk:
+            if tipo == Lancamento.Tipo.CONCILIACAO:
+                self.add_error("tipo", "Conciliacao e gerada automaticamente pelo sistema.")
 
-        if tipo == Lancamento.Tipo.PARCELA_CARTAO:
-            self.add_error(
-                "tipo",
-                "Parcela de Cartao nao pode ser criada manualmente. Use o fluxo de compra parcelada para gerar as parcelas.",
-            )
+            if tipo == Lancamento.Tipo.PARCELA_CARTAO:
+                self.add_error(
+                    "tipo",
+                    "Parcela de Cartao nao pode ser criada manualmente. Use o fluxo de compra parcelada para gerar as parcelas.",
+                )
 
         if tipo in {Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE} and conta and conta.tipo != Conta.Tipo.INVESTIMENTO:
             self.add_error("conta", "Aporte e Resgate sao exclusivos de contas Investimento.")
