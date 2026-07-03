@@ -1,0 +1,19 @@
+{% with widget_class=field.field.widget.attrs.class|default:"" %}
+<div class="m3-field {% if field.errors %}m3-field--error{% endif %}">
+    {% if field.field.widget.input_type == "checkbox" %}
+        <label class="m3-checkbox-label">
+            {{ field }}
+            <span>{{ field.label }}</span>
+        </label>
+    {% else %}
+        <label class="m3-field__label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+        {% if "money-input" in widget_class %}
+            {{ field }}
+        {% else %}
+            <div class="m3-field__control">{{ field }}</div>
+        {% endif %}
+    {% endif %}
+    {% if field.help_text %}<p class="m3-field__helper">{{ field.help_text }}</p>{% endif %}
+    {% for error in field.errors %}<p class="m3-field__helper m3-field__helper--error">{{ error }}</p>{% endfor %}
+</div>
+{% endwith %}

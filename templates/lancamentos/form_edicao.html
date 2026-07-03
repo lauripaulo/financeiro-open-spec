@@ -3,21 +3,25 @@
 {% block title %}Editar lancamento{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Editar lancamento</h2>
     {% if encerrado %}
-    <div class="alert warn">Voce realmente quer editar um mes ja encerrado?</div>
+    <div class="m3-banner m3-banner--error">
+        <p>Voce realmente quer editar um mes ja encerrado?</p>
+    </div>
     {% endif %}
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% for field in form %}
+            {% include "_partials/field.html" with field=field %}
+        {% endfor %}
         {% if encerrado %}
-        <label>
+        <label class="m3-checkbox-label">
             <input type="checkbox" name="confirmar_edicao_mes_encerrado" value="1" required>
-            Confirmo a edicao de mes encerrado
+            <span>Confirmo a edicao de mes encerrado</span>
         </label>
         {% endif %}
-        <button type="submit">Salvar alteracoes</button>
+        <button type="submit" class="m3-button--filled">Salvar alteracoes</button>
     </form>
 </section>
 {% endblock %}

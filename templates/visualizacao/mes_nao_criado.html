@@ -3,12 +3,13 @@
 {% block title %}Mes nao criado{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card m3-empty-state">
+    <span class="m3-icon" aria-hidden="true">calendar_add_on</span>
     <h2>Mes {{ mes|stringformat:"02d" }}/{{ ano }} ainda nao foi criado</h2>
     <p>Para visualizar e editar este mes, crie-o primeiro.</p>
 
     {% if erro_validacao %}
-    <div class="alert warn">
+    <div class="m3-banner m3-banner--error">
         <p>{{ erro_validacao }}</p>
     </div>
     {% endif %}
@@ -20,14 +21,14 @@
             {% csrf_token %}
             <input type="hidden" name="ano" value="{{ mes_permitido_ano }}">
             <input type="hidden" name="mes" value="{{ mes_permitido_mes }}">
-            <button type="submit">Abrir {{ mes_permitido_mes|stringformat:"02d" }}/{{ mes_permitido_ano }}</button>
+            <button type="submit" class="m3-button--filled">Abrir {{ mes_permitido_mes|stringformat:"02d" }}/{{ mes_permitido_ano }}</button>
         </form>
         {% else %}
         <form method="post" action="{% url 'visualizacao:criar_mes' %}">
             {% csrf_token %}
             <input type="hidden" name="ano" value="{{ ano }}">
             <input type="hidden" name="mes" value="{{ mes }}">
-            <button type="submit">Criar mes</button>
+            <button type="submit" class="m3-button--filled">Criar mes</button>
         </form>
         {% endif %}
     {% else %}
@@ -35,7 +36,7 @@
         {% csrf_token %}
         <input type="hidden" name="ano" value="{{ ano }}">
         <input type="hidden" name="mes" value="{{ mes }}">
-        <button type="submit">Criar mes</button>
+        <button type="submit" class="m3-button--filled">Criar mes</button>
     </form>
     {% endif %}
 </section>

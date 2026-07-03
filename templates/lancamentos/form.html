@@ -3,12 +3,14 @@
 {% block title %}Novo lancamento{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Novo lancamento</h2>
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Salvar</button>
+        {% for field in form %}
+            {% include "_partials/field.html" with field=field %}
+        {% endfor %}
+        <button type="submit" class="m3-button--filled">Salvar</button>
     </form>
 </section>
 {% endblock %}

@@ -3,38 +3,40 @@
 {% block title %}Resolver pendentes{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Mes {{ mes }}/{{ ano }} criado</h2>
     <p>Antes de continuar, decida o que fazer com cada lancamento pendente do mes anterior.</p>
 </section>
 
 {# flash-area ja existe em base.html #}
 
-<section class="card">
+<section class="m3-card">
     <h3>Pendentes do mes anterior</h3>
     {% if pendentes %}
-        <ul>
+        <ul class="m3-list">
         {% for item in pendentes %}
-            <li>
-                {{ item.descricao }} - {{ item.conta.nome }}
-                <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="inline" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
-                    {% csrf_token %}
-                    <button type="submit">Transferir para o novo mes</button>
-                </form>
-                <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="inline" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
-                    {% csrf_token %}
-                    <button type="submit" class="secondary">Manter no mes anterior</button>
-                </form>
+            <li class="m3-list-item">
+                <span class="m3-list-item__label">{{ item.descricao }} - {{ item.conta.nome }}</span>
+                <div class="m3-list-item__actions">
+                    <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="m3-inline-form" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="m3-button--filled">Transferir para o novo mes</button>
+                    </form>
+                    <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="m3-inline-form" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="m3-button--outlined">Manter no mes anterior</button>
+                    </form>
+                </div>
             </li>
         {% endfor %}
         </ul>
     {% else %}
         <p>Sem pendencias do mes anterior.</p>
     {% endif %}
-    <a href="?ano={{ ano }}&mes={{ mes }}">Atualizar lista</a>
+    <a class="m3-button--text" href="?ano={{ ano }}&mes={{ mes }}">Atualizar lista</a>
 </section>
 
-<section class="card">
-    <a class="button" href="/?ano={{ ano }}&mes={{ mes }}">Concluir abertura e ir para a visao consolidada</a>
+<section class="m3-card">
+    <a class="m3-button--filled" href="/?ano={{ ano }}&mes={{ mes }}">Concluir abertura e ir para a visao consolidada</a>
 </section>
 {% endblock %}

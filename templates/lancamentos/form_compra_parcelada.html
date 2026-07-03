@@ -3,12 +3,14 @@
 {% block title %}Compra parcelada{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Nova compra parcelada</h2>
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Gerar parcelas</button>
+        {% for field in form %}
+            {% include "_partials/field.html" with field=field %}
+        {% endfor %}
+        <button type="submit" class="m3-button--filled">Gerar parcelas</button>
     </form>
 </section>
 

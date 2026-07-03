@@ -4,62 +4,83 @@
 {% block title %}Visao consolidada{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Visao consolidada - {{ mes }}/{{ ano }}</h2>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <a href="?ano={{ ano_ant }}&mes={{ mes_ant }}">Mes anterior</a>
-        <a href="?ano={{ ano_prox }}&mes={{ mes_prox }}">Mes seguinte</a>
-        <form method="get" class="inline">
-            <input type="number" name="ano" value="{{ ano }}" min="2000" max="2200">
-            <input type="number" name="mes" value="{{ mes }}" min="1" max="12">
-            <button type="submit" class="secondary">Ir</button>
+    <div class="m3-toolbar">
+        <a class="m3-button--text" href="?ano={{ ano_ant }}&mes={{ mes_ant }}">
+            <span class="m3-icon" aria-hidden="true">chevron_left</span> Mes anterior
+        </a>
+        <a class="m3-button--text" href="?ano={{ ano_prox }}&mes={{ mes_prox }}">
+            Mes seguinte <span class="m3-icon" aria-hidden="true">chevron_right</span>
+        </a>
+        <form method="get" class="m3-form--inline">
+            <div class="m3-field m3-field--inline" style="width:90px;">
+                <div class="m3-field__control"><input type="number" name="ano" value="{{ ano }}" min="2000" max="2200"></div>
+            </div>
+            <div class="m3-field m3-field--inline" style="width:70px;">
+                <div class="m3-field__control"><input type="number" name="mes" value="{{ mes }}" min="1" max="12"></div>
+            </div>
+            <button type="submit" class="m3-button--outlined">Ir</button>
         </form>
         <form method="post" action="{% url 'visualizacao:criar_mes' %}">
             {% csrf_token %}
             <input type="hidden" name="ano" value="{{ ano }}">
             <input type="hidden" name="mes" value="{{ mes }}">
-            <button type="submit">Criar mes</button>
+            <button type="submit" class="m3-button--filled">Criar mes</button>
         </form>
     </div>
 </section>
 
 {% if aviso_limite_meses %}
-<div class="alert warn">{{ aviso_limite_meses }}</div>
+<div class="m3-banner m3-banner--error">{{ aviso_limite_meses }}</div>
 {% endif %}
 
 {% for alerta in alertas_limite %}
-<div class="alert warn">{{ alerta }}</div>
+<div class="m3-banner m3-banner--error">{{ alerta }}</div>
 {% endfor %}
 
-<section class="card">
+<section class="m3-card">
     <h3>Filtros</h3>
-    <form method="get" class="inline" style="flex-wrap:wrap;">
+    <form method="get" class="m3-form--inline" style="flex-wrap:wrap;align-items:flex-end;">
         <input type="hidden" name="ano" value="{{ ano }}">
         <input type="hidden" name="mes" value="{{ mes }}">
-        <label>Conta:
-            <select name="conta">
-                <option value="">Todas</option>
-                {% for conta in contas %}
-                    {% if conta.tipo != "INVESTIMENTO" %}
-                    <option value="{{ conta.id }}" {% if conta.id == conta_selecionada %}selected{% endif %}>{{ conta.nome }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-        </label>
-        <label><input type="checkbox" name="status" value="PREVISTO" {% if "PREVISTO" in status_ativos %}checked{% endif %}> Previsto</label>
-        <label><input type="checkbox" name="status" value="PENDENTE" {% if "PENDENTE" in status_ativos %}checked{% endif %}> Pendente</label>
-        <label><input type="checkbox" name="status" value="PAGO" {% if "PAGO" in status_ativos %}checked{% endif %}> Pago</label>
-        <button type="submit" class="secondary">Aplicar</button>
+        <div class="m3-field m3-field--inline" style="min-width:220px;">
+            <label class="m3-field__label">Conta</label>
+            <div class="m3-field__control">
+                <select name="conta">
+                    <option value="">Todas</option>
+                    {% for conta in contas %}
+                        {% if conta.tipo != "INVESTIMENTO" %}
+                        <option value="{{ conta.id }}" {% if conta.id == conta_selecionada %}selected{% endif %}>{{ conta.nome }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="m3-filter-chip-group">
+            <input type="checkbox" id="status-previsto" class="m3-filter-chip-input" name="status" value="PREVISTO" {% if "PREVISTO" in status_ativos %}checked{% endif %}>
+            <label for="status-previsto" class="m3-filter-chip">Previsto</label>
+            <input type="checkbox" id="status-pendente" class="m3-filter-chip-input" name="status" value="PENDENTE" {% if "PENDENTE" in status_ativos %}checked{% endif %}>
+            <label for="status-pendente" class="m3-filter-chip">Pendente</label>
+            <input type="checkbox" id="status-pago" class="m3-filter-chip-input" name="status" value="PAGO" {% if "PAGO" in status_ativos %}checked{% endif %}>
+            <label for="status-pago" class="m3-filter-chip">Pago</label>
+        </div>
+        <button type="submit" class="m3-button--outlined">Aplicar</button>
     </form>
 </section>
 
-<section class="card">
+<section class="m3-card">
     <h3>Movimentacoes</h3>
-    <div style="margin-bottom:12px;display:flex;gap:8px;">
-        <a class="button" href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">Novo lancamento</a>
-        <a class="button" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}">Nova compra parcelada</a>
+    <div class="m3-toolbar">
+        <a class="m3-button--filled" href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">
+            <span class="m3-icon" aria-hidden="true">add</span> Novo lancamento
+        </a>
+        <a class="m3-button--outlined" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}">
+            <span class="m3-icon" aria-hidden="true">add</span> Nova compra parcelada
+        </a>
     </div>
-    <table>
+    <div class="m3-data-table-wrapper">
+    <table class="m3-data-table">
         <thead>
         <tr>
             <th>Descricao</th>
@@ -89,19 +110,29 @@
                     {% endif %}
                 </td>
                 <td>{{ item.data_vencimento|date:"d/m/Y" }}</td>
-                <td><span class="status {{ item.status }}">{{ item.get_status_display }}</span></td>
-                <td class="actions">
+                <td>
+                    <span class="m3-chip {% if item.status == 'PREVISTO' %}m3-chip--previsto{% elif item.status == 'PENDENTE' %}m3-chip--pendente{% else %}m3-chip--pago{% endif %}">{{ item.status.label }}</span>
+                </td>
+                <td class="m3-actions-cell">
                     {% if item.status != "PAGO" %}
-                    <form method="post" action="{% url 'lancamentos:marcar_pago' item.id %}" hx-post="{% url 'lancamentos:marcar_pago' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                    <form method="post" action="{% url 'lancamentos:marcar_pago' item.id %}" hx-post="{% url 'lancamentos:marcar_pago' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" class="m3-inline-form">
                         {% csrf_token %}
-                        <input type="date" name="data_pagamento" required>
-                        <button type="submit">Pagar</button>
+                        <div class="m3-field m3-field--inline">
+                            <div class="m3-field__control"><input type="date" name="data_pagamento" required></div>
+                        </div>
+                        <button type="submit" class="m3-button--filled">
+                            <span class="m3-icon" aria-hidden="true">check</span> Pagar
+                        </button>
                     </form>
                     {% endif %}
-                    <a class="button" href="{% url 'lancamentos:editar' item.id %}">Editar</a>
-                    <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" hx-confirm="Tem certeza que deseja excluir este lancamento?">
+                    <a class="m3-button--outlined" href="{% url 'lancamentos:editar' item.id %}">
+                        <span class="m3-icon" aria-hidden="true">edit</span> Editar
+                    </a>
+                    <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" hx-confirm="Tem certeza que deseja excluir este lancamento?" class="m3-inline-form">
                         {% csrf_token %}
-                        <button type="submit" class="secondary">Excluir</button>
+                        <button type="submit" class="m3-button--outlined">
+                            <span class="m3-icon" aria-hidden="true">delete</span> Excluir
+                        </button>
                     </form>
                 </td>
             </tr>
@@ -110,9 +141,10 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
 </section>
 
-<section class="card">
+<section class="m3-card">
     <h3>Totais</h3>
     <p>Entradas: {{ total_entradas|moeda }}</p>
     <p>Saidas: {{ total_saidas|moeda }}</p>
@@ -123,21 +155,23 @@
     {% endif %}
 </section>
 
-<section class="card">
+<section class="m3-card">
     <h3>Pendentes do mes anterior</h3>
     {% if pendentes_mes_anterior %}
-        <ul>
+        <ul class="m3-list">
         {% for item in pendentes_mes_anterior %}
-            <li>
-                {{ item.descricao }} - {{ item.conta.nome }}
-                <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="inline" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
-                    {% csrf_token %}
-                    <button type="submit">Transferir</button>
-                </form>
-                <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="inline" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
-                    {% csrf_token %}
-                    <button type="submit" class="secondary">Manter</button>
-                </form>
+            <li class="m3-list-item">
+                <span class="m3-list-item__label">{{ item.descricao }} - {{ item.conta.nome }}</span>
+                <div class="m3-list-item__actions">
+                    <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="m3-inline-form" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="m3-button--filled">Transferir</button>
+                    </form>
+                    <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="m3-inline-form" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
+                        {% csrf_token %}
+                        <button type="submit" class="m3-button--outlined">Manter</button>
+                    </form>
+                </div>
             </li>
         {% endfor %}
         </ul>
@@ -146,25 +180,30 @@
     {% endif %}
 </section>
 
-<section class="card">
+<section class="m3-card">
     <h3>Ajustar saldo inicial (Banco/Cartao)</h3>
+    <ul class="m3-list">
     {% for item in contas_ajuste %}
         {% if item.conta.tipo != "INVESTIMENTO" %}
-        <form
-            method="post"
-            action="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
-            class="inline"
-            hx-post="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
-            hx-target="#flash-area"
-            hx-swap="innerHTML"
-            style="margin-bottom:8px;"
-        >
-            {% csrf_token %}
-            <span style="min-width:190px;">{{ item.conta.nome }}</span>
-            <input type="number" step="0.01" name="novo_saldo" value="{{ item.saldo_inicial }}">
-            <button type="submit" class="secondary">Ajustar</button>
-        </form>
+        <li class="m3-list-item">
+            <form
+                method="post"
+                action="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
+                class="m3-form--inline"
+                hx-post="{% url 'visualizacao:ajustar_saldo' item.conta.id %}?ano={{ ano }}&mes={{ mes }}"
+                hx-target="#flash-area"
+                hx-swap="innerHTML"
+            >
+                {% csrf_token %}
+                <span class="m3-list-item__label">{{ item.conta.nome }}</span>
+                <div class="m3-field m3-field--inline">
+                    <input type="text" inputmode="decimal" class="money-input" name="novo_saldo" value="{{ item.saldo_inicial|moeda|cut:'R$ ' }}">
+                </div>
+                <button type="submit" class="m3-button--outlined">Ajustar</button>
+            </form>
+        </li>
         {% endif %}
     {% endfor %}
+    </ul>
 </section>
 {% endblock %}

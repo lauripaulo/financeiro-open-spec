@@ -1,10 +1,10 @@
 (function () {
     function wrapWithPrefix(input) {
-        if (input.closest(".money-field")) return;
+        if (input.closest(".m3-field--filled")) return;
         var wrapper = document.createElement("span");
-        wrapper.className = "money-field";
+        wrapper.className = "m3-field--filled";
         var prefix = document.createElement("span");
-        prefix.className = "money-prefix";
+        prefix.className = "m3-field__prefix";
         prefix.textContent = "R$";
         input.parentNode.insertBefore(wrapper, input);
         wrapper.appendChild(prefix);
@@ -59,9 +59,12 @@
 
         var form = input.closest("form");
         if (form) {
+            // Capture phase: runs before htmx's own bubble-phase submit
+            // listener serializes the form, so hx-post forms send the plain
+            // decimal instead of the masked BRL string.
             form.addEventListener("submit", function () {
                 input.value = maskedToPlainDecimal(input.value);
-            });
+            }, true);
         }
     }
 

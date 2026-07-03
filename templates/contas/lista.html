@@ -4,17 +4,20 @@
 {% block title %}Contas{% endblock %}
 
 {% block content %}
-<section class="card">
+<section class="m3-card">
     <h2>Contas</h2>
-    <div style="margin-bottom:12px;">
-        <a class="button" href="{% url 'contas:criar' %}">Nova conta</a>
+    <div class="m3-toolbar">
+        <a class="m3-button--filled" href="{% url 'contas:criar' %}">
+            <span class="m3-icon" aria-hidden="true">add</span> Nova conta
+        </a>
     </div>
 
     {% if erro_exclusao %}
-    <div class="alert warn">{{ erro_exclusao }}</div>
+    <div class="m3-banner m3-banner--error">{{ erro_exclusao }}</div>
     {% endif %}
 
-    <table>
+    <div class="m3-data-table-wrapper">
+    <table class="m3-data-table">
         <thead>
         <tr>
             <th>Nome</th>
@@ -33,11 +36,15 @@
                 <td>{{ conta.saldo_atual|moeda }}</td>
                 <td>{{ conta.limite_negativo|moeda }}</td>
                 <td>{{ conta.dia_vencimento|default:"-" }}</td>
-                <td class="actions">
-                    <a class="button" href="{% url 'contas:editar' conta.id %}">Editar</a>
-                    <form method="post" action="{% url 'contas:excluir' conta.id %}" class="inline" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
+                <td class="m3-actions-cell">
+                    <a class="m3-button--outlined" href="{% url 'contas:editar' conta.id %}">
+                        <span class="m3-icon" aria-hidden="true">edit</span> Editar
+                    </a>
+                    <form method="post" action="{% url 'contas:excluir' conta.id %}" class="m3-inline-form" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
                         {% csrf_token %}
-                        <button type="submit" class="secondary">Excluir</button>
+                        <button type="submit" class="m3-button--outlined">
+                            <span class="m3-icon" aria-hidden="true">delete</span> Excluir
+                        </button>
                     </form>
                 </td>
             </tr>
@@ -46,5 +53,6 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
 </section>
 {% endblock %}

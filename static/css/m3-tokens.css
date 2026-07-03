@@ -1,0 +1,120 @@
+/*
+ * Material Design 3 design tokens.
+ * Palette derived from seed color #0f766e (hue 175) following the M3 tonal
+ * structure: primary/secondary/tertiary/error/neutral roles, each with a
+ * "container" (light, low-emphasis) and "on-*" (readable text/icon) pair.
+ * `warning` and `success` are project-specific roles layered on top of core
+ * M3 roles, which M3 explicitly allows for app-specific semantic states.
+ */
+:root {
+  color-scheme: light;
+
+  /* Primary (teal) */
+  --md-sys-color-primary: hsl(175 70% 27%);
+  --md-sys-color-on-primary: hsl(0 0% 100%);
+  --md-sys-color-primary-container: hsl(175 45% 90%);
+  --md-sys-color-on-primary-container: hsl(175 80% 12%);
+
+  /* Secondary (muted teal-gray) */
+  --md-sys-color-secondary: hsl(175 16% 35%);
+  --md-sys-color-on-secondary: hsl(0 0% 100%);
+  --md-sys-color-secondary-container: hsl(175 25% 88%);
+  --md-sys-color-on-secondary-container: hsl(175 25% 15%);
+
+  /* Tertiary (blue-violet accent, used for informational states) */
+  --md-sys-color-tertiary: hsl(235 35% 45%);
+  --md-sys-color-on-tertiary: hsl(0 0% 100%);
+  --md-sys-color-tertiary-container: hsl(235 60% 93%);
+  --md-sys-color-on-tertiary-container: hsl(235 50% 20%);
+
+  /* Error */
+  --md-sys-color-error: hsl(4 74% 42%);
+  --md-sys-color-on-error: hsl(0 0% 100%);
+  --md-sys-color-error-container: hsl(6 87% 92%);
+  --md-sys-color-on-error-container: hsl(2 65% 21%);
+
+  /* Warning (project extension) */
+  --md-sys-color-warning: hsl(32 80% 33%);
+  --md-sys-color-on-warning: hsl(0 0% 100%);
+  --md-sys-color-warning-container: hsl(38 92% 90%);
+  --md-sys-color-on-warning-container: hsl(32 70% 18%);
+
+  /* Success (project extension) */
+  --md-sys-color-success: hsl(152 60% 27%);
+  --md-sys-color-on-success: hsl(0 0% 100%);
+  --md-sys-color-success-container: hsl(152 55% 89%);
+  --md-sys-color-on-success-container: hsl(152 65% 14%);
+
+  /* Neutral surfaces */
+  --md-sys-color-background: hsl(175 20% 98%);
+  --md-sys-color-on-background: hsl(175 10% 12%);
+  --md-sys-color-surface: hsl(175 20% 98%);
+  --md-sys-color-on-surface: hsl(175 10% 12%);
+  --md-sys-color-surface-variant: hsl(175 12% 90%);
+  --md-sys-color-on-surface-variant: hsl(175 8% 30%);
+  --md-sys-color-surface-container-low: hsl(175 20% 96%);
+  --md-sys-color-surface-container: hsl(175 18% 94%);
+  --md-sys-color-surface-container-high: hsl(175 16% 91%);
+  --md-sys-color-outline: hsl(175 6% 48%);
+  --md-sys-color-outline-variant: hsl(175 12% 82%);
+  --md-sys-color-scrim: hsl(0 0% 0%);
+
+  /* Typography scale */
+  --md-sys-typescale-headline-large-font: "Roboto", sans-serif;
+  --md-sys-typescale-headline-large-size: 2rem;
+  --md-sys-typescale-headline-large-line-height: 2.5rem;
+  --md-sys-typescale-headline-large-weight: 500;
+
+  --md-sys-typescale-title-large-font: "Roboto", sans-serif;
+  --md-sys-typescale-title-large-size: 1.375rem;
+  --md-sys-typescale-title-large-line-height: 1.75rem;
+  --md-sys-typescale-title-large-weight: 500;
+
+  --md-sys-typescale-title-medium-font: "Roboto", sans-serif;
+  --md-sys-typescale-title-medium-size: 1rem;
+  --md-sys-typescale-title-medium-line-height: 1.5rem;
+  --md-sys-typescale-title-medium-weight: 500;
+
+  --md-sys-typescale-body-large-font: "Roboto", sans-serif;
+  --md-sys-typescale-body-large-size: 1rem;
+  --md-sys-typescale-body-large-line-height: 1.5rem;
+  --md-sys-typescale-body-large-weight: 400;
+
+  --md-sys-typescale-body-medium-font: "Roboto", sans-serif;
+  --md-sys-typescale-body-medium-size: 0.875rem;
+  --md-sys-typescale-body-medium-line-height: 1.25rem;
+  --md-sys-typescale-body-medium-weight: 400;
+
+  --md-sys-typescale-label-large-font: "Roboto", sans-serif;
+  --md-sys-typescale-label-large-size: 0.875rem;
+  --md-sys-typescale-label-large-line-height: 1.25rem;
+  --md-sys-typescale-label-large-weight: 500;
+  --md-sys-typescale-label-large-tracking: 0.00625rem;
+
+  --md-sys-typescale-label-medium-font: "Roboto", sans-serif;
+  --md-sys-typescale-label-medium-size: 0.75rem;
+  --md-sys-typescale-label-medium-line-height: 1rem;
+  --md-sys-typescale-label-medium-weight: 500;
+
+  /* Shape */
+  --md-sys-shape-corner-none: 0;
+  --md-sys-shape-corner-xs: 4px;
+  --md-sys-shape-corner-sm: 8px;
+  --md-sys-shape-corner-md: 12px;
+  --md-sys-shape-corner-lg: 16px;
+  --md-sys-shape-corner-xl: 28px;
+  --md-sys-shape-corner-full: 999px;
+
+  /* Elevation */
+  --md-sys-elevation-0: none;
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-4: 0 2px 3px rgba(0, 0, 0, 0.3), 0 6px 10px 4px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-5: 0 4px 4px rgba(0, 0, 0, 0.3), 0 8px 12px 6px rgba(0, 0, 0, 0.15);
+
+  /* State layers */
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
+}

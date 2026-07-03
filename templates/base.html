@@ -5,61 +5,29 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Financeiro{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/m3-tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/m3-base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/m3-components.css' %}">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="{% static 'js/money-mask.js' %}"></script>
-    <style>
-        body { font-family: sans-serif; margin: 0; background: #f6f7fb; color: #1f2937; }
-        header { background: #0f172a; color: #fff; padding: 16px 20px; }
-        nav a { color: #cbd5e1; text-decoration: none; margin-right: 16px; }
-        nav a:hover { color: #fff; }
-        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-        .card { background: #fff; border-radius: 10px; box-shadow: 0 3px 14px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
-        .alert { padding: 10px; border-radius: 8px; margin-bottom: 8px; }
-        .alert.warn { background: #fff7ed; border: 1px solid #fdba74; }
-        .alert.info { background: #eff6ff; border: 1px solid #93c5fd; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
-        .actions form { display: inline-block; margin-right: 6px; }
-        .status { font-weight: 600; }
-        .status.PREVISTO { color: #2563eb; }
-        .status.PENDENTE { color: #b45309; }
-        .status.PAGO { color: #047857; }
-        form.inline { display: inline-flex; gap: 8px; align-items: center; }
-        input, select, button { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        button, a.button { background: #0f766e; color: #fff; border-color: #0f766e; cursor: pointer; }
-        button.secondary, a.button.secondary { background: #fff; color: #0f766e; }
-        a.button { display: inline-block; padding: 8px 12px; border: 1px solid #0f766e; border-radius: 6px; text-decoration: none; }
-        .money-field { display: inline-flex; align-items: stretch; }
-        .money-field .money-prefix {
-            display: flex; align-items: center;
-            padding: 8px 10px;
-            background: #e5e7eb;
-            border: 1px solid #cbd5e1;
-            border-right: none;
-            border-radius: 6px 0 0 6px;
-            color: #1f2937;
-            font-weight: 600;
-        }
-        .money-field input.money-input {
-            border-radius: 0 6px 6px 0;
-            text-align: right;
-        }
-    </style>
 </head>
 <body>
-<header>
-    <h1 style="margin:0 0 10px;">Controle Financeiro</h1>
-    <nav>
-        <a href="{% url 'visualizacao:consolidada' %}">Visao consolidada</a>
-        <a href="{% url 'visualizacao:patrimonio' %}">Patrimonio</a>
-        <a href="{% url 'visualizacao:comparativo' %}">Comparativo</a>
-        <a href="{% url 'contas:listar' %}">Contas</a>
+<header class="m3-top-app-bar">
+    <h1 class="m3-top-app-bar__title">Controle Financeiro</h1>
+    <nav class="m3-top-app-bar__nav">
+        <a class="m3-nav-link" href="{% url 'visualizacao:consolidada' %}" {% if request.resolver_match.view_name == 'visualizacao:consolidada' %}aria-current="page"{% endif %}>Visao consolidada</a>
+        <a class="m3-nav-link" href="{% url 'visualizacao:patrimonio' %}" {% if request.resolver_match.view_name == 'visualizacao:patrimonio' %}aria-current="page"{% endif %}>Patrimonio</a>
+        <a class="m3-nav-link" href="{% url 'visualizacao:comparativo' %}" {% if request.resolver_match.view_name == 'visualizacao:comparativo' %}aria-current="page"{% endif %}>Comparativo</a>
+        <a class="m3-nav-link" href="{% url 'contas:listar' %}" {% if request.resolver_match.view_name == 'contas:listar' %}aria-current="page"{% endif %}>Contas</a>
     </nav>
 </header>
 <main class="container">
     <div id="flash-area">
         {% for message in messages %}
-        <div class="alert {% if message.tags == 'error' %}warn{% else %}info{% endif %}">{{ message }}</div>
+        <div class="m3-banner {% if message.tags == 'error' %}m3-banner--error{% else %}m3-banner--info{% endif %}">{{ message }}</div>
         {% endfor %}
     </div>
     {% block content %}{% endblock %}
