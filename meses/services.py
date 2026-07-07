@@ -136,14 +136,7 @@ def criar_mes(ano, mes):
         ).pendentes()
 
         for origem in Lancamento.objects.filter(competencia_ano=ano_anterior, competencia_mes=mes_anterior):
-            if origem.tipo in {
-                Lancamento.Tipo.RECEBIMENTO_EXCEPCIONAL,
-                Lancamento.Tipo.GASTO_VARIAVEL,
-                Lancamento.Tipo.CONCILIACAO,
-                Lancamento.Tipo.APORTE,
-                Lancamento.Tipo.RESGATE,
-                Lancamento.Tipo.PARCELA_CARTAO,
-            }:
+            if origem.tipo not in Lancamento.TIPOS_PROPAGAVEIS:
                 continue
 
             parcela_atual = None

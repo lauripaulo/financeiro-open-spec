@@ -11,4 +11,5 @@ urlpatterns = [
     path("<int:pk>/excluir/", views.excluir_lancamento, name="excluir"),
     path("<int:pk>/excluir-par/", views.excluir_lancamento_par, name="excluir_par"),
     path("parcelado/", views.criar_compra_parcelada, name="compra_parcelada"),
+    path("transferencia/", views.criar_transferencia, name="transferencia"),
 ]

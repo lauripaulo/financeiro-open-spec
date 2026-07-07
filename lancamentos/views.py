@@ -6,7 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from lancamentos.forms import CompraParceladaForm, LancamentoForm, MarcarPagoForm
+from lancamentos.forms import CompraParceladaForm, LancamentoForm, MarcarPagoForm, TransferenciaForm
 from lancamentos.models import Lancamento
 from meses.services import excluir_serie_futura, atualizar_serie_futura
 
@@ -138,7 +138,11 @@ def criar_compra_parcelada(request):
     if request.method == "POST":
         form = CompraParceladaForm(request.POST)
         if form.is_valid():
-            form.save()
+            compra = form.save()
+            messages.success(
+                request,
+                f"Compra parcelada '{compra.descricao}' criada com sucesso ({compra.total_parcelas} parcelas).",
+            )
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204)
             return redirect(f"/?ano={ano}&mes={mes}")
@@ -146,3 +150,25 @@ def criar_compra_parcelada(request):
         form = CompraParceladaForm()
 
     return render(request, "lancamentos/form_compra_parcelada.html", {"form": form})
+
+
+@require_http_methods(["GET", "POST"])
+def criar_transferencia(request):
+    ano, mes = _contexto_mes(request)
+
+    if request.method == "POST":
+        form = TransferenciaForm(request.POST)
+        if form.is_valid():
+            enviada, recebida = form.save()
+            messages.success(
+                request,
+                f"Transferencia '{enviada.descricao}' de {enviada.conta.nome} "
+                f"para {recebida.conta.nome} criada com sucesso.",
+            )
+            if request.headers.get("HX-Request"):
+                return HttpResponse(status=204)
+            return redirect(f"/?ano={ano}&mes={mes}")
+    else:
+        form = TransferenciaForm()
+
+    return render(request, "lancamentos/form_transferencia.html", {"form": form})

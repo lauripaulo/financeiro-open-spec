@@ -59,6 +59,8 @@ class Lancamento(models.Model):
         CONCILIACAO = "CONCILIACAO", "Conciliacao"
         APORTE = "APORTE", "Aporte"
         RESGATE = "RESGATE", "Resgate"
+        TRANSFERENCIA_ENVIADA = "TRANSFERENCIA_ENVIADA", "Transferencia Enviada"
+        TRANSFERENCIA_RECEBIDA = "TRANSFERENCIA_RECEBIDA", "Transferencia Recebida"
 
     class Status(models.TextChoices):
         PREVISTO = "PREVISTO", "Previsto"
@@ -75,6 +77,7 @@ class Lancamento(models.Model):
         Tipo.RECEBIMENTO_FIXO,
         Tipo.RECEBIMENTO_EXCEPCIONAL,
         Tipo.APORTE,
+        Tipo.TRANSFERENCIA_RECEBIDA,
     }
 
     TIPOS_SAIDA = {
@@ -83,6 +86,7 @@ class Lancamento(models.Model):
         Tipo.ASSINATURA,
         Tipo.PARCELA_CARTAO,
         Tipo.RESGATE,
+        Tipo.TRANSFERENCIA_ENVIADA,
     }
 
     descricao = models.CharField(max_length=180)

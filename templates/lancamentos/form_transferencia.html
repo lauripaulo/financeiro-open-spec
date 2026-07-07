@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Transferencia entre contas{% endblock %}
+
+{% block content %}
+<section class="m3-card">
+    <h2>Nova transferencia</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            {% include "_partials/field.html" with field=field %}
+        {% endfor %}
+        <button type="submit" class="m3-button--filled">Transferir</button>
+    </form>
+</section>
+{% endblock %}

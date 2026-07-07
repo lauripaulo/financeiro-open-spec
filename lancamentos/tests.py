@@ -439,3 +439,181 @@ class LancamentoVinculadoVisualizacaoTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Banco Inter")
+
+
+class CriarCompraParceladaViewTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Cartao Teste",
+            tipo=Conta.Tipo.CARTAO,
+            saldo_atual=Decimal("0.00"),
+            dia_vencimento=10,
+        )
+        self.url = reverse("lancamentos:compra_parcelada")
+
+    def _payload(self, **overrides):
+        return {
+            "descricao": "Compra Teste",
+            "valor_total": "600.00",
+            "total_parcelas": "3",
+            "parcelas_pagas": "0",
+            "conta": self.conta.pk,
+            "data_compra": date.today().isoformat(),
+            **overrides,
+        }
+
+    def test_post_valido_redireciona(self):
+        response = self.client.post(self.url, self._payload())
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_valido_emite_mensagem_de_sucesso(self):
+        response = self.client.post(self.url, self._payload(), follow=True)
+        msgs = list(response.context["messages"])
+        self.assertTrue(any("Compra Teste" in str(m) for m in msgs))
+
+    def test_post_valido_cria_uma_compra_parcelada(self):
+        from parcelas.models import CompraParcelada
+        self.client.post(self.url, self._payload())
+        self.assertEqual(CompraParcelada.objects.filter(descricao="Compra Teste").count(), 1)
+
+    def test_post_invalido_reexibe_formulario(self):
+        response = self.client.post(self.url, self._payload(total_parcelas="1"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors)
+
+
+class GerarTransferenciaServiceTests(TestCase):
+    def setUp(self):
+        self.origem = _make_banco(nome="Banco Origem")
+        self.destino = _make_banco(nome="Banco Destino")
+        self.invest = _make_investimento(nome="Invest Bloqueada")
+
+    def _gerar(self, **overrides):
+        from lancamentos.services import gerar_transferencia
+        params = {
+            "descricao": "Transferencia teste",
+            "conta_origem": self.origem,
+            "conta_destino": self.destino,
+            "valor": Decimal("300.00"),
+            "data_vencimento": date.today(),
+            **overrides,
+        }
+        return gerar_transferencia(**params)
+
+    def test_cria_par_vinculado_com_tipos_e_valores_corretos(self):
+        enviada, recebida = self._gerar()
+
+        self.assertEqual(enviada.tipo, Lancamento.Tipo.TRANSFERENCIA_ENVIADA)
+        self.assertEqual(recebida.tipo, Lancamento.Tipo.TRANSFERENCIA_RECEBIDA)
+        self.assertEqual(enviada.conta, self.origem)
+        self.assertEqual(recebida.conta, self.destino)
+        self.assertEqual(enviada.valor, recebida.valor)
+        self.assertEqual(enviada.lancamento_vinculado_id, recebida.pk)
+        self.assertEqual(recebida.lancamento_vinculado_id, enviada.pk)
+
+    def test_mesma_conta_rejeitada(self):
+        with self.assertRaises(ValidationError):
+            self._gerar(conta_destino=self.origem)
+
+    def test_conta_investimento_rejeitada_como_origem_e_destino(self):
+        with self.assertRaises(ValidationError):
+            self._gerar(conta_origem=self.invest)
+        with self.assertRaises(ValidationError):
+            self._gerar(conta_destino=self.invest)
+
+
+class TransferenciaFormTests(TestCase):
+    def setUp(self):
+        self.origem = _make_banco(nome="Banco Origem")
+        self.destino = _make_banco(nome="Banco Destino")
+        self.invest = _make_investimento(nome="Invest Fora")
+
+    def _data(self, **overrides):
+        return {
+            "descricao": "Transferencia form",
+            "conta_origem": self.origem.pk,
+            "conta_destino": self.destino.pk,
+            "valor": "150.00",
+            "data_vencimento": date.today().isoformat(),
+            **overrides,
+        }
+
+    def test_form_valido(self):
+        from lancamentos.forms import TransferenciaForm
+        form = TransferenciaForm(data=self._data())
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_contas_iguais_rejeitadas(self):
+        from lancamentos.forms import TransferenciaForm
+        form = TransferenciaForm(data=self._data(conta_destino=self.origem.pk))
+        self.assertFalse(form.is_valid())
+        self.assertIn("conta_destino", form.errors)
+
+    def test_conta_investimento_fora_do_queryset(self):
+        from lancamentos.forms import TransferenciaForm
+        form = TransferenciaForm(data=self._data(conta_origem=self.invest.pk))
+        self.assertFalse(form.is_valid())
+        self.assertIn("conta_origem", form.errors)
+
+    def test_tipos_de_transferencia_excluidos_do_cadastro_manual(self):
+        form = LancamentoForm()
+        tipos_disponiveis = {escolha[0] for escolha in form.fields["tipo"].choices}
+        self.assertNotIn(Lancamento.Tipo.TRANSFERENCIA_ENVIADA, tipos_disponiveis)
+        self.assertNotIn(Lancamento.Tipo.TRANSFERENCIA_RECEBIDA, tipos_disponiveis)
+
+
+class CriarTransferenciaViewTests(TestCase):
+    def setUp(self):
+        self.origem = _make_banco(nome="Banco Origem")
+        self.destino = _make_banco(nome="Banco Destino")
+        self.url = reverse("lancamentos:transferencia")
+
+    def _payload(self):
+        return {
+            "descricao": "Transferencia view",
+            "conta_origem": self.origem.pk,
+            "conta_destino": self.destino.pk,
+            "valor": "200.00",
+            "data_vencimento": date.today().isoformat(),
+        }
+
+    def test_post_valido_redireciona_e_cria_par(self):
+        response = self.client.post(self.url, self._payload())
+        self.assertEqual(response.status_code, 302)
+        enviada = Lancamento.objects.get(tipo=Lancamento.Tipo.TRANSFERENCIA_ENVIADA)
+        recebida = Lancamento.objects.get(tipo=Lancamento.Tipo.TRANSFERENCIA_RECEBIDA)
+        self.assertEqual(enviada.lancamento_vinculado_id, recebida.pk)
+
+    def test_post_valido_emite_mensagem_de_sucesso(self):
+        response = self.client.post(self.url, self._payload(), follow=True)
+        msgs = list(response.context["messages"])
+        self.assertTrue(any("Transferencia" in str(m) for m in msgs))
+
+
+class TransferenciaNaoPropagadaTests(TestCase):
+    def test_abertura_de_mes_nao_propaga_transferencia(self):
+        from meses.services import criar_mes
+        from lancamentos.services import gerar_transferencia
+
+        hoje = date.today()
+        origem = _make_banco(nome="Banco Origem")
+        destino = _make_banco(nome="Banco Destino")
+        criar_mes(hoje.year, hoje.month)
+        gerar_transferencia(
+            descricao="Transferencia pontual",
+            conta_origem=origem,
+            conta_destino=destino,
+            valor=Decimal("100.00"),
+            data_vencimento=hoje,
+        )
+
+        proximo_ano = hoje.year + (1 if hoje.month == 12 else 0)
+        proximo_mes = 1 if hoje.month == 12 else hoje.month + 1
+        criar_mes(proximo_ano, proximo_mes)
+
+        copias = Lancamento.objects.filter(
+            tipo__in=[Lancamento.Tipo.TRANSFERENCIA_ENVIADA, Lancamento.Tipo.TRANSFERENCIA_RECEBIDA],
+            competencia_ano=proximo_ano,
+            competencia_mes=proximo_mes,
+        )
+        self.assertEqual(copias.count(), 0)

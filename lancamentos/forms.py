@@ -1,8 +1,11 @@
+from decimal import Decimal
+
 from django import forms
 
 from contas.models import Conta
 from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
+from lancamentos.services import gerar_transferencia
 from parcelas.services import gerar_parcelas_da_compra
 
 
@@ -18,6 +21,8 @@ class LancamentoForm(forms.ModelForm):
     TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL = {
         Lancamento.Tipo.CONCILIACAO,
         Lancamento.Tipo.PARCELA_CARTAO,
+        Lancamento.Tipo.TRANSFERENCIA_ENVIADA,
+        Lancamento.Tipo.TRANSFERENCIA_RECEBIDA,
     }
 
     def __init__(self, *args, **kwargs):
@@ -63,6 +68,12 @@ class LancamentoForm(forms.ModelForm):
                 self.add_error(
                     "tipo",
                     "Parcela de Cartao nao pode ser criada manualmente. Use o fluxo de compra parcelada para gerar as parcelas.",
+                )
+
+            if tipo in {Lancamento.Tipo.TRANSFERENCIA_ENVIADA, Lancamento.Tipo.TRANSFERENCIA_RECEBIDA}:
+                self.add_error(
+                    "tipo",
+                    "Transferencia nao pode ser criada manualmente. Use o fluxo de transferencia entre contas.",
                 )
 
         if tipo in {Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE} and conta and conta.tipo != Conta.Tipo.INVESTIMENTO:
@@ -121,4 +132,39 @@ class CompraParceladaForm(forms.Form):
             parcelas_pagas=self.cleaned_data["parcelas_pagas"],
             conta=self.cleaned_data["conta"],
             data_compra=self.cleaned_data["data_compra"],
+        )
+
+
+class TransferenciaForm(forms.Form):
+    CONTAS_PERMITIDAS = (Conta.Tipo.BANCO, Conta.Tipo.CARTAO)
+
+    descricao = forms.CharField(max_length=180)
+    conta_origem = forms.ModelChoiceField(queryset=Conta.objects.none(), label="Conta de origem")
+    conta_destino = forms.ModelChoiceField(queryset=Conta.objects.none(), label="Conta de destino")
+    valor = forms.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"), widget=MoedaWidget())
+    data_vencimento = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        contas = Conta.objects.filter(tipo__in=self.CONTAS_PERMITIDAS).order_by("nome")
+        self.fields["conta_origem"].queryset = contas
+        self.fields["conta_destino"].queryset = contas
+
+    def clean(self):
+        cleaned_data = super().clean()
+        conta_origem = cleaned_data.get("conta_origem")
+        conta_destino = cleaned_data.get("conta_destino")
+
+        if conta_origem and conta_destino and conta_origem == conta_destino:
+            self.add_error("conta_destino", "Conta de destino deve ser diferente da conta de origem.")
+
+        return cleaned_data
+
+    def save(self):
+        return gerar_transferencia(
+            descricao=self.cleaned_data["descricao"],
+            conta_origem=self.cleaned_data["conta_origem"],
+            conta_destino=self.cleaned_data["conta_destino"],
+            valor=self.cleaned_data["valor"],
+            data_vencimento=self.cleaned_data["data_vencimento"],
         )

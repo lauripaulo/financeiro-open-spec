@@ -78,6 +78,9 @@
         <a class="m3-button--outlined" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}">
             <span class="m3-icon" aria-hidden="true">add</span> Nova compra parcelada
         </a>
+        <a class="m3-button--outlined" href="{% url 'lancamentos:transferencia' %}?ano={{ ano }}&mes={{ mes }}">
+            <span class="m3-icon" aria-hidden="true">sync_alt</span> Nova transferencia
+        </a>
     </div>
     <div class="m3-data-table-wrapper">
     <table class="m3-data-table">
