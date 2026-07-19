@@ -3,14 +3,23 @@
 {% block title %}Transferencia entre contas{% endblock %}
 
 {% block content %}
+<div class="form-page">
 <section class="m3-card">
     <h2>Nova transferencia</h2>
     <form method="post">
         {% csrf_token %}
-        {% for field in form %}
-            {% include "_partials/field.html" with field=field %}
+        {% for error in form.non_field_errors %}
+        <div class="m3-banner m3-banner--error"><p>{{ error }}</p></div>
         {% endfor %}
+        <div class="form-grid">
+            {% include "_partials/field.html" with field=form.descricao span="full" %}
+            {% include "_partials/field.html" with field=form.conta_origem span="full" %}
+            {% include "_partials/field.html" with field=form.conta_destino span="full" %}
+            {% include "_partials/field.html" with field=form.valor %}
+            {% include "_partials/field.html" with field=form.data_vencimento %}
+        </div>
         <button type="submit" class="m3-button--filled">Transferir</button>
     </form>
 </section>
+</div>
 {% endblock %}

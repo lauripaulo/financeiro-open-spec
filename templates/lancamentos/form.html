@@ -3,14 +3,23 @@
 {% block title %}Novo lancamento{% endblock %}
 
 {% block content %}
+<div class="form-page">
 <section class="m3-card">
     <h2>Novo lancamento</h2>
     <form method="post">
         {% csrf_token %}
-        {% for field in form %}
-            {% include "_partials/field.html" with field=field %}
+        {% for error in form.non_field_errors %}
+        <div class="m3-banner m3-banner--error"><p>{{ error }}</p></div>
         {% endfor %}
+        <div class="form-grid">
+            {% include "_partials/field.html" with field=form.descricao span="full" %}
+            {% include "_partials/field.html" with field=form.tipo span="full" %}
+            {% include "_partials/field.html" with field=form.conta span="full" %}
+            {% include "_partials/field.html" with field=form.data_vencimento %}
+            {% include "_partials/field.html" with field=form.valor %}
+        </div>
         <button type="submit" class="m3-button--filled">Salvar</button>
     </form>
 </section>
+</div>
 {% endblock %}

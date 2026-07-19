@@ -108,11 +108,6 @@ def editar_lancamento(request, pk):
                     "tipo": atualizado.tipo,
                 }
                 atualizar_serie_futura(lancamento, **campos)
-                # Save lancamento_vinculado separately — not cascaded to recurring series
-                novo_vinculado = atualizado.lancamento_vinculado
-                if lancamento.lancamento_vinculado != novo_vinculado:
-                    lancamento.lancamento_vinculado = novo_vinculado
-                    lancamento.save(update_fields=["lancamento_vinculado"])
             if request.headers.get("HX-Request"):
                 messages.success(request, "Lancamento atualizado.")
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})

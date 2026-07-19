@@ -4,8 +4,15 @@
 {% block title %}Patrimonio{% endblock %}
 
 {% block content %}
+<div class="m3-stat-row">
+    <div class="m3-stat-card">
+        <p class="m3-stat-card__label">Patrimonio total</p>
+        <p class="m3-stat-card__value">{{ total_patrimonio|moeda }}</p>
+    </div>
+</div>
+
 <section class="m3-card">
-    <h2>Visao de patrimonio: Total {{ total_patrimonio|moeda }}</h2>
+    <h2>Visao de patrimonio</h2>
     {% for item in dados %}
     <article class="m3-card m3-card--nested">
         <h3>{{ item.conta.nome }} - Saldo acumulado: {{ item.saldo|moeda }}</h3>

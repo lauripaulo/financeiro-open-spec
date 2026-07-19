@@ -484,6 +484,152 @@ select:focus-visible,
   margin-bottom: 20px;
 }
 
+/* ---------- Form page layout ---------- */
+.form-page {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+
+.form-grid__full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Conditional fields (see conditional-fields.js) */
+.m3-field--hidden {
+  display: none;
+}
+
+/* ---------- Stat cards (totais) ---------- */
+.m3-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.m3-stat-card {
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-sys-shape-corner-md);
+  box-shadow: var(--md-sys-elevation-1);
+  padding: 16px 20px;
+}
+
+.m3-stat-card__label {
+  margin: 0 0 4px;
+  font: var(--md-sys-typescale-label-large-weight) var(--md-sys-typescale-label-large-size) / var(--md-sys-typescale-label-large-line-height) var(--md-sys-typescale-label-large-font);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.m3-stat-card__value {
+  margin: 0;
+  font-size: var(--md-sys-typescale-headline-large-size);
+  line-height: var(--md-sys-typescale-headline-large-line-height);
+  font-weight: var(--md-sys-typescale-headline-large-weight);
+  color: var(--md-sys-color-on-surface);
+}
+
+.m3-stat-card__value--positive {
+  color: var(--md-sys-color-on-success-container);
+}
+
+.m3-stat-card__value--negative {
+  color: var(--md-sys-color-error);
+}
+
+/* ---------- Collapsible section ---------- */
+.m3-collapsible {
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-sys-shape-corner-md);
+  box-shadow: var(--md-sys-elevation-1);
+  margin-bottom: 16px;
+}
+
+.m3-collapsible > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 20px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  color: var(--md-sys-color-on-surface);
+}
+
+.m3-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.m3-collapsible > summary::before {
+  content: "chevron_right";
+  font-family: "Material Symbols Outlined";
+  font-size: 1.25rem;
+  transition: transform 0.15s;
+}
+
+.m3-collapsible[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.m3-collapsible__body {
+  padding: 0 20px 20px;
+}
+
+.m3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  font: var(--md-sys-typescale-label-medium-weight) var(--md-sys-typescale-label-medium-size) / 1 var(--md-sys-typescale-label-medium-font);
+}
+
+/* ---------- Popover (pagar) ---------- */
+.m3-popover {
+  position: relative;
+  display: inline-block;
+}
+
+.m3-popover > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.m3-popover > summary::-webkit-details-marker {
+  display: none;
+}
+
+.m3-popover__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: var(--md-sys-shape-corner-md);
+  box-shadow: var(--md-sys-elevation-3);
+}
+
 /* ---------- Layout helpers ---------- */
 .m3-toolbar {
   display: flex;

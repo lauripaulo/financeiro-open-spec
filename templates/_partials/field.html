@@ -1,5 +1,5 @@
 {% with widget_class=field.field.widget.attrs.class|default:"" %}
-<div class="m3-field {% if field.errors %}m3-field--error{% endif %}">
+<div class="m3-field {% if field.errors %}m3-field--error{% endif %} {% if span == "full" %}form-grid__full{% endif %}"{% if cond %} data-show-when="{{ cond }}"{% endif %}>
     {% if field.field.widget.input_type == "checkbox" %}
         <label class="m3-checkbox-label">
             {{ field }}

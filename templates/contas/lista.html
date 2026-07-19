@@ -33,8 +33,8 @@
             <tr>
                 <td>{{ conta.nome }}</td>
                 <td>{{ conta.get_tipo_display }}</td>
-                <td>{{ conta.saldo_atual|moeda }}</td>
-                <td>{{ conta.limite_negativo|moeda }}</td>
+                <td>{% if conta.tipo == "CARTAO" %}-{% else %}{{ conta.saldo_atual|moeda }}{% endif %}</td>
+                <td>{% if conta.tipo == "BANCO" %}{{ conta.limite_negativo|moeda }}{% else %}-{% endif %}</td>
                 <td>{{ conta.dia_vencimento|default:"-" }}</td>
                 <td class="m3-actions-cell">
                     <a class="m3-button--outlined m3-button--icon-only" href="{% url 'contas:editar' conta.id %}" aria-label="Editar" title="Editar">

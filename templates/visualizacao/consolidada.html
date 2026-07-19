@@ -13,15 +13,6 @@
         <a class="m3-button--text" href="?ano={{ ano_prox }}&mes={{ mes_prox }}">
             Mes seguinte <span class="m3-icon" aria-hidden="true">chevron_right</span>
         </a>
-        <form method="get" class="m3-form--inline">
-            <div class="m3-field m3-field--inline" style="width:90px;">
-                <div class="m3-field__control"><input type="number" name="ano" value="{{ ano }}" min="2000" max="2200"></div>
-            </div>
-            <div class="m3-field m3-field--inline" style="width:70px;">
-                <div class="m3-field__control"><input type="number" name="mes" value="{{ mes }}" min="1" max="12"></div>
-            </div>
-            <button type="submit" class="m3-button--outlined">Ir</button>
-        </form>
         <form method="post" action="{% url 'visualizacao:criar_mes' %}">
             {% csrf_token %}
             <input type="hidden" name="ano" value="{{ ano }}">
@@ -29,21 +20,15 @@
             <button type="submit" class="m3-button--filled">Criar mes</button>
         </form>
     </div>
-</section>
-
-{% if aviso_limite_meses %}
-<div class="m3-banner m3-banner--error">{{ aviso_limite_meses }}</div>
-{% endif %}
-
-{% for alerta in alertas_limite %}
-<div class="m3-banner m3-banner--error">{{ alerta }}</div>
-{% endfor %}
-
-<section class="m3-card">
-    <h3>Filtros</h3>
-    <form method="get" class="m3-form--inline" style="flex-wrap:wrap;align-items:flex-end;">
-        <input type="hidden" name="ano" value="{{ ano }}">
-        <input type="hidden" name="mes" value="{{ mes }}">
+    <form method="get" class="m3-toolbar" style="margin-bottom:0;align-items:flex-end;">
+        <div class="m3-field m3-field--inline" style="width:90px;">
+            <label class="m3-field__label">Ano</label>
+            <div class="m3-field__control"><input type="number" name="ano" value="{{ ano }}" min="2000" max="2200"></div>
+        </div>
+        <div class="m3-field m3-field--inline" style="width:70px;">
+            <label class="m3-field__label">Mes</label>
+            <div class="m3-field__control"><input type="number" name="mes" value="{{ mes }}" min="1" max="12"></div>
+        </div>
         <div class="m3-field m3-field--inline" style="min-width:220px;">
             <label class="m3-field__label">Conta</label>
             <div class="m3-field__control">
@@ -68,6 +53,29 @@
         <button type="submit" class="m3-button--outlined">Aplicar</button>
     </form>
 </section>
+
+{% if aviso_limite_meses %}
+<div class="m3-banner m3-banner--error">{{ aviso_limite_meses }}</div>
+{% endif %}
+
+{% for alerta in alertas_limite %}
+<div class="m3-banner m3-banner--error">{{ alerta }}</div>
+{% endfor %}
+
+<div class="m3-stat-row">
+    <div class="m3-stat-card">
+        <p class="m3-stat-card__label">Entradas</p>
+        <p class="m3-stat-card__value m3-stat-card__value--positive">{{ total_entradas|moeda }}</p>
+    </div>
+    <div class="m3-stat-card">
+        <p class="m3-stat-card__label">Saidas</p>
+        <p class="m3-stat-card__value m3-stat-card__value--negative">{{ total_saidas|moeda }}</p>
+    </div>
+    <div class="m3-stat-card">
+        <p class="m3-stat-card__label">{% if conta_selecionada_obj %}Saldo da conta {{ conta_selecionada_obj.nome }}{% else %}Saldo consolidado{% endif %}</p>
+        <p class="m3-stat-card__value">{{ saldo_total|moeda }}</p>
+    </div>
+</div>
 
 <section class="m3-card">
     <h3>Movimentacoes</h3>
@@ -118,15 +126,18 @@
                 </td>
                 <td class="m3-actions-cell">
                     {% if item.status != "PAGO" %}
-                    <form method="post" action="{% url 'lancamentos:marcar_pago' item.id %}" hx-post="{% url 'lancamentos:marcar_pago' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" class="m3-inline-form">
-                        {% csrf_token %}
-                        <div class="m3-field m3-field--inline">
-                            <div class="m3-field__control"><input type="date" name="data_pagamento" required></div>
-                        </div>
-                        <button type="submit" class="m3-button--filled m3-button--icon-only" aria-label="Pagar" title="Pagar">
+                    <details class="m3-popover">
+                        <summary class="m3-button--filled m3-button--icon-only" aria-label="Pagar" title="Pagar" role="button">
                             <span class="m3-icon" aria-hidden="true">check</span>
-                        </button>
-                    </form>
+                        </summary>
+                        <form method="post" action="{% url 'lancamentos:marcar_pago' item.id %}" hx-post="{% url 'lancamentos:marcar_pago' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" class="m3-popover__panel">
+                            {% csrf_token %}
+                            <div class="m3-field m3-field--inline">
+                                <div class="m3-field__control"><input type="date" name="data_pagamento" value="{% now 'Y-m-d' %}" required></div>
+                            </div>
+                            <button type="submit" class="m3-button--filled">Confirmar</button>
+                        </form>
+                    </details>
                     {% endif %}
                     <a class="m3-button--outlined m3-button--icon-only" href="{% url 'lancamentos:editar' item.id %}" aria-label="Editar" title="Editar">
                         <span class="m3-icon" aria-hidden="true">edit</span>
@@ -147,19 +158,12 @@
     </div>
 </section>
 
-<section class="m3-card">
-    <h3>Totais</h3>
-    <p>Entradas: {{ total_entradas|moeda }}</p>
-    <p>Saidas: {{ total_saidas|moeda }}</p>
-    {% if conta_selecionada_obj %}
-    <p><strong>Saldo da conta {{ conta_selecionada_obj.nome }}: {{ saldo_total|moeda }}</strong></p>
-    {% else %}
-    <p><strong>Saldo consolidado: {{ saldo_total|moeda }}</strong></p>
-    {% endif %}
-</section>
-
-<section class="m3-card">
-    <h3>Pendentes do mes anterior</h3>
+<details class="m3-collapsible">
+    <summary>
+        Pendentes do mes anterior
+        {% if pendentes_mes_anterior %}<span class="m3-badge">{{ pendentes_mes_anterior|length }}</span>{% endif %}
+    </summary>
+    <div class="m3-collapsible__body">
     {% if pendentes_mes_anterior %}
         <ul class="m3-list">
         {% for item in pendentes_mes_anterior %}
@@ -181,10 +185,12 @@
     {% else %}
         <p>Sem pendencias do mes anterior.</p>
     {% endif %}
-</section>
+    </div>
+</details>
 
-<section class="m3-card">
-    <h3>Ajustar saldo inicial (Banco/Cartao)</h3>
+<details class="m3-collapsible">
+    <summary>Ajustar saldo inicial (Banco/Cartao)</summary>
+    <div class="m3-collapsible__body">
     <ul class="m3-list">
     {% for item in contas_ajuste %}
         {% if item.conta.tipo != "INVESTIMENTO" %}
@@ -208,5 +214,6 @@
         {% endif %}
     {% endfor %}
     </ul>
-</section>
+    </div>
+</details>
 {% endblock %}
