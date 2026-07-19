@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado da importacao{% endblock %}
+
+{% block content %}
+<section class="m3-card">
+    <h2>Resultado da importacao — {{ resumo.conta }}</h2>
+    <p>
+        Criados: <strong>{{ resumo.criados|length }}</strong> ·
+        Atualizados: <strong>{{ resumo.atualizados|length }}</strong> ·
+        Pulados: <strong>{{ resumo.pulados|length }}</strong>
+    </p>
+    <div class="m3-toolbar">
+        <a class="m3-button--outlined" href="{% url 'importacao:nubank_cartao' %}">Nova importacao</a>
+    </div>
+
+    <h3>Criados</h3>
+    {% include "importacao/_tabela_itens.html" with itens=resumo.criados vazio="Nenhum item criado." %}
+
+    <h3>Atualizados</h3>
+    {% include "importacao/_tabela_itens.html" with itens=resumo.atualizados vazio="Nenhum item atualizado." %}
+
+    <h3>Pulados</h3>
+    {% include "importacao/_tabela_itens.html" with itens=resumo.pulados vazio="Nenhum item pulado." %}
+</section>
+{% endblock %}

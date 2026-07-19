@@ -24,6 +24,7 @@
         <a class="m3-nav-link" href="{% url 'visualizacao:patrimonio' %}" {% if request.resolver_match.view_name == 'visualizacao:patrimonio' %}aria-current="page"{% endif %}>Patrimonio</a>
         <a class="m3-nav-link" href="{% url 'visualizacao:comparativo' %}" {% if request.resolver_match.view_name == 'visualizacao:comparativo' %}aria-current="page"{% endif %}>Comparativo</a>
         <a class="m3-nav-link" href="{% url 'contas:listar' %}" {% if request.resolver_match.view_name == 'contas:listar' %}aria-current="page"{% endif %}>Contas</a>
+        <a class="m3-nav-link" href="{% url 'importacao:index' %}" {% if request.resolver_match.namespace == 'importacao' %}aria-current="page"{% endif %}>Importar</a>
     </nav>
 </header>
 <main class="container">

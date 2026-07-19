@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Importar OFX do cartao Nubank{% endblock %}
+
+{% block content %}
+<div class="form-page">
+<section class="m3-card">
+    <h2>Importar OFX do cartao Nubank</h2>
+    <p>Envie o extrato OFX da fatura. Compras parceladas geram as parcelas
+    futuras como projecao; importacoes seguintes podem corrigi-las.</p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% include "_partials/form_errors.html" %}
+        <div class="form-grid">
+            {% include "_partials/field.html" with field=form.arquivo span="full" %}
+            {% include "_partials/field.html" with field=form.conta span="full" %}
+            {% include "_partials/field.html" with field=form.modo span="full" %}
+        </div>
+        <button type="submit" class="m3-button--filled">Importar</button>
+    </form>
+</section>
+</div>
+{% endblock %}

@@ -21,3 +21,14 @@ implementacao.
   seguinte ao ultimo aberto) e propaga lancamentos recorrentes.
 - **Compra parcelada** — compra de cartao que gera parcelas mensais; unica
   origem de lancamentos do tipo Parcela de Cartao.
+- **Importacao de fatura** — trazer transacoes de um arquivo OFX do cartao
+  para dentro do sistema como lancamentos da conta escolhida.
+- **Item importado** — rastro de uma transacao ja importada; permite que
+  importacoes seguintes reconhecam o que ja existe (deduplicacao).
+- **Identificador da compra (FITID)** — codigo que o banco atribui a compra;
+  o mesmo codigo acompanha todas as parcelas da compra em faturas seguintes.
+- **Parcela projetada** — parcela futura criada pela importacao com valor
+  estimado; corrigida quando a fatura real do mes chegar.
+- **Modo de importacao** — escolha do usuario a cada importacao: somente
+  itens novos, ou sobrescrever projecoes existentes com os dados reais.
+  Lancamento ja pago nunca e sobrescrito.

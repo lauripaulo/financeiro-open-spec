@@ -64,3 +64,63 @@ def gerar_parcelas_da_compra(*, descricao, valor_total, total_parcelas, conta, d
         )
 
     return compra
+
+
+def criar_parcela_importada(*, compra, parcela_atual, valor, competencia_ano, competencia_mes):
+    return Lancamento.objects.create(
+        descricao=f"{compra.descricao} {parcela_atual}/{compra.total_parcelas}",
+        tipo=Lancamento.Tipo.PARCELA_CARTAO,
+        data_vencimento=_data_vencimento_segura(
+            competencia_ano, competencia_mes, compra.conta.dia_vencimento
+        ),
+        valor=valor,
+        conta=compra.conta,
+        competencia_ano=competencia_ano,
+        competencia_mes=competencia_mes,
+        total_parcelas=compra.total_parcelas,
+        parcela_atual=parcela_atual,
+        gerado_automaticamente=True,
+    )
+
+
+@transaction.atomic
+def registrar_compra_importada(
+    *, descricao, valor_parcela, parcela_atual, total_parcelas, conta, data_lancamento, fitid
+):
+    """Registra uma compra parcelada vinda de importacao OFX.
+
+    O OFX so informa o valor da parcela do mes, nunca o total real da compra;
+    o valor_total gravado e uma estimativa (valor_parcela * total_parcelas) e
+    as parcelas futuras nascem como projecao com o mesmo valor da parcela
+    atual, corrigiveis por importacoes seguintes.
+    """
+    parcela_atual = int(parcela_atual)
+    total_parcelas = int(total_parcelas)
+
+    if not 1 <= parcela_atual <= total_parcelas:
+        raise ValidationError({"parcela_atual": "Parcela atual fora do intervalo da compra."})
+
+    valor_parcela = Decimal(valor_parcela)
+    compra = CompraParcelada.objects.create(
+        descricao=descricao,
+        valor_total=(valor_parcela * total_parcelas).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        total_parcelas=total_parcelas,
+        conta=conta,
+        data_compra=data_lancamento,
+        fitid=fitid,
+    )
+
+    parcelas = []
+    for indice in range(parcela_atual, total_parcelas + 1):
+        ano, mes = _mes_seguinte(data_lancamento, indice - parcela_atual)
+        parcelas.append(
+            criar_parcela_importada(
+                compra=compra,
+                parcela_atual=indice,
+                valor=valor_parcela,
+                competencia_ano=ano,
+                competencia_mes=mes,
+            )
+        )
+
+    return compra, parcelas

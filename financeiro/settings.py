@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'parcelas',
     'meses',
     'visualizacao',
+    'importacao',
 ]
 
 MIDDLEWARE = [

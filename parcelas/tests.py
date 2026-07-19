@@ -7,7 +7,11 @@ from django.test import TestCase
 from contas.models import Conta
 from lancamentos.models import Lancamento
 from parcelas.models import CompraParcelada
-from parcelas.services import gerar_parcelas_da_compra
+from parcelas.services import (
+    criar_parcela_importada,
+    gerar_parcelas_da_compra,
+    registrar_compra_importada,
+)
 
 
 class ParcelasTests(TestCase):
@@ -119,3 +123,132 @@ class ParcelasTests(TestCase):
 
         self.assertEqual(CompraParcelada.objects.count(), 0)
         self.assertEqual(Lancamento.objects.filter(tipo=Lancamento.Tipo.PARCELA_CARTAO).count(), 0)
+
+
+class RegistrarCompraImportadaTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Cartao Import",
+            tipo=Conta.Tipo.CARTAO,
+            dia_vencimento=8,
+        )
+
+    def registrar(self, **kwargs):
+        params = {
+            "descricao": "Idoc3d",
+            "valor_parcela": Decimal("296.68"),
+            "parcela_atual": 1,
+            "total_parcelas": 3,
+            "conta": self.conta,
+            "data_lancamento": date(2026, 7, 14),
+            "fitid": "fitid-idoc",
+        }
+        params.update(kwargs)
+        return registrar_compra_importada(**params)
+
+    def test_cria_compra_com_fitid_e_valor_total_estimado(self):
+        compra, parcelas = self.registrar()
+
+        self.assertEqual(compra.fitid, "fitid-idoc")
+        self.assertEqual(compra.valor_total, Decimal("890.04"))
+        self.assertEqual(compra.total_parcelas, 3)
+        self.assertEqual(compra.data_compra, date(2026, 7, 14))
+        self.assertEqual(len(parcelas), 3)
+
+    def test_parcela_atual_fica_no_mes_do_lancamento_e_futuras_nos_seguintes(self):
+        _, parcelas = self.registrar()
+
+        self.assertEqual(
+            [(p.parcela_atual, p.competencia_ano, p.competencia_mes) for p in parcelas],
+            [(1, 2026, 7), (2, 2026, 8), (3, 2026, 9)],
+        )
+        for parcela in parcelas:
+            self.assertEqual(parcela.tipo, Lancamento.Tipo.PARCELA_CARTAO)
+            self.assertEqual(parcela.valor, Decimal("296.68"))
+            self.assertEqual(parcela.conta, self.conta)
+            self.assertEqual(parcela.total_parcelas, 3)
+            self.assertTrue(parcela.gerado_automaticamente)
+        self.assertEqual(parcelas[0].descricao, "Idoc3d 1/3")
+        self.assertEqual(parcelas[0].data_vencimento, date(2026, 7, 8))
+        self.assertEqual(parcelas[1].data_vencimento, date(2026, 8, 8))
+
+    def test_compra_no_meio_gera_somente_da_parcela_atual_em_diante(self):
+        _, parcelas = self.registrar(parcela_atual=4, total_parcelas=12)
+
+        self.assertEqual(len(parcelas), 9)
+        self.assertEqual(parcelas[0].parcela_atual, 4)
+        self.assertEqual(parcelas[-1].parcela_atual, 12)
+
+    def test_ultima_parcela_gera_uma_so(self):
+        _, parcelas = self.registrar(parcela_atual=10, total_parcelas=10)
+
+        self.assertEqual(len(parcelas), 1)
+        self.assertEqual(parcelas[0].descricao, "Idoc3d 10/10")
+
+    def test_virada_de_ano_incrementa_competencia_ano(self):
+        _, parcelas = self.registrar(data_lancamento=date(2026, 11, 14))
+
+        self.assertEqual(
+            [(p.competencia_ano, p.competencia_mes) for p in parcelas],
+            [(2026, 11), (2026, 12), (2027, 1)],
+        )
+
+    def test_parcela_atual_fora_do_intervalo_rejeitada(self):
+        for parcela_atual in (0, 4):
+            with self.assertRaises(ValidationError):
+                self.registrar(parcela_atual=parcela_atual)
+
+        self.assertEqual(CompraParcelada.objects.count(), 0)
+        self.assertEqual(Lancamento.objects.count(), 0)
+
+    def test_fitid_duplicado_rejeitado(self):
+        from django.db import IntegrityError, transaction
+
+        self.registrar()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.registrar(descricao="Outra compra")
+
+
+class CriarParcelaImportadaTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Cartao Avulso",
+            tipo=Conta.Tipo.CARTAO,
+            dia_vencimento=31,
+        )
+        self.compra = CompraParcelada.objects.create(
+            descricao="Compra Existente",
+            conta=self.conta,
+            valor_total=Decimal("300.00"),
+            total_parcelas=3,
+            data_compra=date(2026, 1, 15),
+            fitid="fitid-existente",
+        )
+
+    def test_cria_parcela_com_dados_da_compra(self):
+        parcela = criar_parcela_importada(
+            compra=self.compra,
+            parcela_atual=2,
+            valor=Decimal("100.00"),
+            competencia_ano=2026,
+            competencia_mes=3,
+        )
+
+        self.assertEqual(parcela.descricao, "Compra Existente 2/3")
+        self.assertEqual(parcela.tipo, Lancamento.Tipo.PARCELA_CARTAO)
+        self.assertEqual(parcela.conta, self.conta)
+        self.assertEqual(parcela.total_parcelas, 3)
+        self.assertEqual(parcela.parcela_atual, 2)
+        self.assertTrue(parcela.gerado_automaticamente)
+
+    def test_dia_vencimento_maior_que_ultimo_dia_do_mes_e_ajustado(self):
+        parcela = criar_parcela_importada(
+            compra=self.compra,
+            parcela_atual=2,
+            valor=Decimal("100.00"),
+            competencia_ano=2026,
+            competencia_mes=2,
+        )
+
+        self.assertEqual(parcela.data_vencimento, date(2026, 2, 28))

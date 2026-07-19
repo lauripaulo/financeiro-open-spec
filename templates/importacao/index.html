@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Importar{% endblock %}
+
+{% block content %}
+<section class="m3-card">
+    <h2>Importar arquivo</h2>
+    <p>Escolha uma origem para importar transacoes para o sistema.</p>
+    <div class="m3-toolbar">
+        <a class="m3-button--filled" href="{% url 'importacao:nubank_cartao' %}">
+            <span class="m3-icon" aria-hidden="true">upload_file</span> OFX do cartao Nubank
+        </a>
+    </div>
+</section>
+{% endblock %}

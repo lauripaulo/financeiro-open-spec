@@ -1,0 +1,26 @@
+{% if itens %}
+<div class="m3-data-table-wrapper">
+<table class="m3-data-table">
+    <thead>
+    <tr>
+        <th>Descricao</th>
+        <th>Valor</th>
+        <th>Competencia</th>
+        <th>Motivo</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in itens %}
+    <tr>
+        <td>{{ item.descricao }}</td>
+        <td>R$ {{ item.valor }}</td>
+        <td>{{ item.competencia }}</td>
+        <td>{{ item.motivo|default:"-" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p>{{ vazio }}</p>
+{% endif %}

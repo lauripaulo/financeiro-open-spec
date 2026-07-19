@@ -22,4 +22,5 @@ urlpatterns = [
     path('', include('visualizacao.urls')),
     path('lancamentos/', include('lancamentos.urls')),
     path('contas/', include('contas.urls')),
+    path('importar/', include('importacao.urls')),
 ]
