@@ -106,9 +106,7 @@ doubling the contrast-audit and QA surface for the initial migration.
 - **No page-corner FAB.** "Novo lançamento"/"Nova compra parcelada" stay inline
   filled/tonal buttons rather than a fixed FAB, since the dashboard's stacked-card
   layout would risk the FAB overlapping content on mobile scroll.
-- **Icons are ligature text next to visible labels, not icon-only buttons.** Avoids
-  needing to retrofit `aria-label`s across every action; reserves icon-only styling
-  for purely decorative marks (e.g., a checkbox's check glyph).
+- **Icons are ligature text next to visible labels for primary page-level actions, but icon-only buttons are used for table actions.** Primary actions (e.g. "Nova conta") use visible text labels. However, the action cells ("Ações" column) in tables (`consolidada.html` and `lista.html`) are migrated to icon-only buttons (`.m3-button--icon-only`) with explicit `aria-label` and `title` attributes. This preserves touch targets (48x48dp) and accessibility while preventing cramped horizontal scroll behavior on narrower viewports.
 
 ## Risks / Trade-offs
 
@@ -145,6 +143,3 @@ so rollback is a plain revert of the affected files if issues surface.
 
 - Should dark-theme support be scheduled as an immediate follow-up change, or left
   unscheduled until requested?
-- Should the icon-only, `aria-label`-based compact button style be adopted later for
-  the cramped "Ações" column in `consolidada.html` on narrow viewports, or is text+icon
-  with horizontal scroll acceptable long-term?

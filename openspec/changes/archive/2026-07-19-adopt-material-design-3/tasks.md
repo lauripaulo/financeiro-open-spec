@@ -93,18 +93,25 @@
       criar, editar), lancamentos (criar, editar, compra_parcelada), visualizacao
       (consolidada populated and empty states, comparativo, patrimonio,
       mes_nao_criado, resolver_pendentes_abertura)
-- [ ] 7.2 Trigger and verify htmx-swapped fragments render with correct M3 styling:
+- [x] 7.2 Trigger and verify htmx-swapped fragments render with correct M3 styling:
       marcar_pago, excluir, excluir_par, transferir_pendente, manter_pendente,
       ajustar_saldo
 - [x] 7.3 Confirm `/admin/` renders with stock Django styling, unaffected by the new
       `static/css` files or font links
-- [ ] 7.4 Check responsive behavior at mobile (360px), tablet, and desktop widths,
+- [x] 7.4 Check responsive behavior at mobile (360px), tablet, and desktop widths,
       including table horizontal scrolling and top-app-bar/nav wrapping
-- [ ] 7.5 Run a Lighthouse accessibility audit and a keyboard-only tab pass on each
+- [x] 7.5 Run a Lighthouse accessibility audit and a keyboard-only tab pass on each
       migrated page, confirming visible focus rings and no keyboard traps
-- [ ] 7.6 Spot-check color contrast (DevTools) on body text, status chips, button
+- [x] 7.6 Spot-check color contrast (DevTools) on body text, status chips, button
       text/background, and banner text/background against the M3 tokens
-- [ ] 7.7 Regression-check `money-mask.js`: type into money fields on
+- [x] 7.7 Regression-check `money-mask.js`: type into money fields on
       `contas/form.html`, `lancamentos/form.html`, and
       `lancamentos/form_compra_parcelada.html`, confirming the "R$" prefix still
       attaches correctly to the renamed `.m3-field--filled` container
+
+## 8. Compact table action buttons (Option B)
+
+- [x] 8.1 Add `.m3-button--icon-only` class to `static/css/m3-components.css`
+- [x] 8.2 Migrate `templates/visualizacao/consolidada.html` action buttons to icon-only buttons with `aria-label` and `title` attributes
+- [x] 8.3 Migrate `templates/contas/lista.html` action buttons to icon-only buttons with `aria-label` and `title` attributes
+- [x] 8.4 Verify layout alignment and visual appearance of icon-only buttons across all viewport widths
