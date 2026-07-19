@@ -123,18 +123,18 @@
                         <div class="m3-field m3-field--inline">
                             <div class="m3-field__control"><input type="date" name="data_pagamento" required></div>
                         </div>
-                        <button type="submit" class="m3-button--filled">
-                            <span class="m3-icon" aria-hidden="true">check</span> Pagar
+                        <button type="submit" class="m3-button--filled m3-button--icon-only" aria-label="Pagar" title="Pagar">
+                            <span class="m3-icon" aria-hidden="true">check</span>
                         </button>
                     </form>
                     {% endif %}
-                    <a class="m3-button--outlined" href="{% url 'lancamentos:editar' item.id %}">
-                        <span class="m3-icon" aria-hidden="true">edit</span> Editar
+                    <a class="m3-button--outlined m3-button--icon-only" href="{% url 'lancamentos:editar' item.id %}" aria-label="Editar" title="Editar">
+                        <span class="m3-icon" aria-hidden="true">edit</span>
                     </a>
                     <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" hx-confirm="Tem certeza que deseja excluir este lancamento?" class="m3-inline-form">
                         {% csrf_token %}
-                        <button type="submit" class="m3-button--outlined">
-                            <span class="m3-icon" aria-hidden="true">delete</span> Excluir
+                        <button type="submit" class="m3-button--outlined m3-button--icon-only" aria-label="Excluir" title="Excluir">
+                            <span class="m3-icon" aria-hidden="true">delete</span>
                         </button>
                     </form>
                 </td>
