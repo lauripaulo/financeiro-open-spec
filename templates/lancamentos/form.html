@@ -11,6 +11,7 @@
         {% include "_partials/form_errors.html" %}
         <div class="form-grid">
             {% include "_partials/field.html" with field=form.descricao span="full" %}
+            {% include "_partials/field.html" with field=form.detalhes span="full" %}
             {% include "_partials/field.html" with field=form.tipo span="full" %}
             {% include "_partials/field.html" with field=form.conta span="full" %}
             {% include "_partials/field.html" with field=form.data_vencimento %}

@@ -648,3 +648,65 @@ class TransferenciaNaoPropagadaTests(TestCase):
             competencia_mes=proximo_mes,
         )
         self.assertEqual(copias.count(), 0)
+
+
+class LancamentoDetalhesViewTests(TestCase):
+    def setUp(self):
+        from decimal import Decimal
+
+        from contas.models import Conta
+        from meses.models import MesAberto
+
+        self.conta = Conta.objects.create(nome="Banco D", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        MesAberto.objects.create(ano=2026, mes=7)
+
+    def test_criar_lancamento_com_detalhes_via_view(self):
+        resposta = self.client.post(
+            "/lancamentos/novo/?ano=2026&mes=7",
+            {
+                "descricao": "Gasto com detalhes",
+                "detalhes": "Texto integral do memo aqui",
+                "tipo": Lancamento.Tipo.GASTO_VARIAVEL,
+                "data_vencimento": "2026-07-10",
+                "valor": "50.00",
+                "conta": self.conta.id,
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 302)
+        lanc = Lancamento.objects.get()
+        self.assertEqual(lanc.detalhes, "Texto integral do memo aqui")
+
+    def test_editar_lancamento_exibe_e_atualiza_detalhes(self):
+        from datetime import date
+        from decimal import Decimal
+
+        lanc = Lancamento.objects.create(
+            descricao="Pix - Fulano",
+            detalhes="Pix - Fulano - doc - banco",
+            tipo=Lancamento.Tipo.GASTO_VARIAVEL,
+            data_vencimento=date(2026, 7, 10),
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=7,
+        )
+
+        resposta = self.client.get(f"/lancamentos/{lanc.id}/editar/")
+        self.assertContains(resposta, "Pix - Fulano - doc - banco")
+
+        resposta = self.client.post(
+            f"/lancamentos/{lanc.id}/editar/",
+            {
+                "descricao": "Pix - Fulano",
+                "detalhes": "Detalhe editado pelo usuario",
+                "tipo": Lancamento.Tipo.GASTO_VARIAVEL,
+                "data_vencimento": "2026-07-10",
+                "valor": "10.00",
+                "conta": self.conta.id,
+            },
+        )
+
+        self.assertIn(resposta.status_code, (200, 204, 302))
+        lanc.refresh_from_db()
+        self.assertEqual(lanc.detalhes, "Detalhe editado pelo usuario")

@@ -95,6 +95,7 @@ class Lancamento(models.Model):
     }
 
     descricao = models.CharField(max_length=180)
+    detalhes = models.TextField(blank=True, default="")
     tipo = models.CharField(max_length=30, choices=Tipo.choices)
     data_vencimento = models.DateField()
     data_pagamento = models.DateField(null=True, blank=True)

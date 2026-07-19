@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Importar OFX do cartao Nubank{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
 
 {% block content %}
 <div class="form-page">
 <section class="m3-card">
-    <h2>Importar OFX do cartao Nubank</h2>
-    <p>Envie o extrato OFX da fatura. Compras parceladas geram as parcelas
-    futuras como projecao; importacoes seguintes podem corrigi-las.</p>
+    <h2>{{ titulo }}</h2>
+    <p>{{ ajuda }}</p>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% include "_partials/form_errors.html" %}

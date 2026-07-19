@@ -14,13 +14,19 @@ class CompraParcelada(models.Model):
         max_length=255,
         null=True,
         blank=True,
-        unique=True,
         help_text="Identificador da compra no banco de origem (importacao OFX).",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-data_compra", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["conta", "fitid"],
+                name="compra_fitid_unico_por_conta",
+                condition=models.Q(fitid__isnull=False),
+            ),
+        ]
 
     def __str__(self):
         return f"{self.descricao} ({self.total_parcelas}x)"

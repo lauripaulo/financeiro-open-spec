@@ -13,11 +13,12 @@ from parcelas.services import gerar_parcelas_da_compra
 class LancamentoForm(forms.ModelForm):
     class Meta:
         model = Lancamento
-        fields = ["descricao", "tipo", "data_vencimento", "valor", "conta"]
+        fields = ["descricao", "detalhes", "tipo", "data_vencimento", "valor", "conta"]
         widgets = {
             "valor": MoedaWidget(),
             "data_vencimento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "conta": ContaSelect(),
+            "detalhes": forms.Textarea(attrs={"rows": 2}),
         }
 
     TIPOS_EXCLUIDOS_DO_CADASTRO_MANUAL = {
