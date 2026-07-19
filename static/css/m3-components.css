@@ -286,6 +286,20 @@ select:focus-visible,
   min-width: 120px;
 }
 
+.m3-field--xs {
+  width: 70px;
+  min-width: 70px;
+}
+
+.m3-field--sm {
+  width: 90px;
+  min-width: 90px;
+}
+
+.m3-field--md {
+  min-width: 220px;
+}
+
 /* ---------- Checkbox ---------- */
 .m3-checkbox-label {
   display: inline-flex;

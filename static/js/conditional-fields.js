@@ -67,11 +67,11 @@
     }
 
     function setupContaFilter(form) {
-        var contaSelect = form.querySelector("select option[data-conta-tipo]");
-        if (!contaSelect) {
+        var optionComTipo = form.querySelector("select option[data-conta-tipo]");
+        if (!optionComTipo) {
             return;
         }
-        contaSelect = contaSelect.closest("select");
+        var contaSelect = optionComTipo.closest("select");
 
         var tipoSelect = form.querySelector("#id_tipo");
         if (!tipoSelect) {

@@ -14,15 +14,15 @@
             Mes seguinte <span class="m3-icon" aria-hidden="true">chevron_right</span>
         </a>
         <form method="get" class="m3-form--inline m3-toolbar--filters">
-            <div class="m3-field m3-field--inline" style="width:90px;">
+            <div class="m3-field m3-field--inline m3-field--sm">
                 <label class="m3-field__label">Ano</label>
                 <div class="m3-field__control"><input type="number" name="ano" value="{{ ano }}" min="2000" max="2200"></div>
             </div>
-            <div class="m3-field m3-field--inline" style="width:70px;">
+            <div class="m3-field m3-field--inline m3-field--xs">
                 <label class="m3-field__label">Mes</label>
                 <div class="m3-field__control"><input type="number" name="mes" value="{{ mes }}" min="1" max="12"></div>
             </div>
-            <div class="m3-field m3-field--inline" style="min-width:220px;">
+            <div class="m3-field m3-field--inline m3-field--md">
                 <label class="m3-field__label">Conta</label>
                 <div class="m3-field__control">
                     <select name="conta">
@@ -216,22 +216,4 @@
     </ul>
     </div>
 </details>
-
-<script>
-    // Data do popover de pagar sempre "hoje" no momento do clique, nao do
-    // render (pagina pode ficar aberta alem da meia-noite).
-    document.addEventListener("toggle", function (event) {
-        var popover = event.target;
-        if (!popover.matches || !popover.matches("details.m3-popover") || !popover.open) {
-            return;
-        }
-        var input = popover.querySelector('input[type="date"]');
-        if (input) {
-            var hoje = new Date();
-            input.value = hoje.getFullYear() + "-"
-                + String(hoje.getMonth() + 1).padStart(2, "0") + "-"
-                + String(hoje.getDate()).padStart(2, "0");
-        }
-    }, true);
-</script>
 {% endblock %}

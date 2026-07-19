@@ -173,11 +173,9 @@ class Lancamento(models.Model):
         if conta_tipo is not None and self.tipo in self.TIPOS_INVESTIMENTO and conta_tipo != Conta.Tipo.INVESTIMENTO:
             errors["tipo"] = "Aporte e Resgate sao exclusivos de contas Investimento."
 
-        if conta_tipo == Conta.Tipo.INVESTIMENTO and self.tipo not in {
-            self.Tipo.APORTE,
-            self.Tipo.RESGATE,
-            self.Tipo.CONCILIACAO,
-        }:
+        if conta_tipo == Conta.Tipo.INVESTIMENTO and self.tipo not in (
+            self.TIPOS_INVESTIMENTO | {self.Tipo.CONCILIACAO}
+        ):
             errors["tipo"] = "Conta Investimento aceita apenas Aporte, Resgate e Conciliacao automatica."
 
         if self.tipo == self.Tipo.PARCELA_CARTAO:
