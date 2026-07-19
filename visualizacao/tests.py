@@ -131,7 +131,7 @@ class ResumoConsolidadoServiceTests(TestCase):
         self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
         self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
 
-        resumo = resumo_consolidado(self.ano, self.mes, conta_id=str(self.banco.pk))
+        resumo = resumo_consolidado(self.ano, self.mes, conta_id=self.banco.pk)
 
         self.assertTrue(all(l.conta_id == self.banco.pk for l in resumo.lancamentos))
         self.assertEqual(resumo.total_entradas, Decimal("300.00"))
@@ -187,7 +187,7 @@ class ResumoConsolidadoServiceTests(TestCase):
         )
         self._lancar(estourada, Lancamento.Tipo.GASTO_FIXO, Decimal("500.00"))
 
-        resumo = resumo_consolidado(self.ano, self.mes, conta_id=str(self.banco.pk))
+        resumo = resumo_consolidado(self.ano, self.mes, conta_id=self.banco.pk)
 
         self.assertIn("Banco Estourado: limite negativo ultrapassado.", resumo.alertas_limite)
 
@@ -212,14 +212,16 @@ class ResumoConsolidadoServiceTests(TestCase):
             )
             self.assertEqual(resumo.saldo_total, esperado, f"status={status}")
 
-            resumo_banco = resumo_consolidado(
-                self.ano, self.mes, conta_id=str(self.banco.pk), status=status
-            )
-            self.assertEqual(
-                resumo_banco.saldo_total,
-                saldo_do_mes(self.banco, self.ano, self.mes, status_incluidos=status),
-                f"status={status}",
-            )
+            # cada conta individualmente, nao so por transitividade
+            for conta in (self.banco, self.cartao):
+                resumo_conta = resumo_consolidado(
+                    self.ano, self.mes, conta_id=conta.pk, status=status
+                )
+                self.assertEqual(
+                    resumo_conta.saldo_total,
+                    saldo_do_mes(conta, self.ano, self.mes, status_incluidos=status),
+                    f"conta={conta.nome} status={status}",
+                )
 
     def test_numero_constante_de_consultas(self):
         self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
