@@ -181,6 +181,15 @@ class LancamentoFormTiposExcluidosTests(TestCase):
         self.assertEqual(salvo.valor, Decimal("60.00"))
         self.assertEqual(salvo.tipo, Lancamento.Tipo.PARCELA_CARTAO)
 
+    def test_form_nao_expoe_lancamento_vinculado(self):
+        form = LancamentoForm()
+        self.assertNotIn("lancamento_vinculado", form.fields)
+
+    def test_options_de_conta_expoem_tipo_da_conta(self):
+        form = LancamentoForm()
+        html = str(form["conta"])
+        self.assertIn('data-conta-tipo="CARTAO"', html)
+
     def test_editar_parcela_cartao_desabilita_campo_tipo(self):
         hoje = date.today()
         p = Lancamento.objects.create(
@@ -197,6 +206,28 @@ class LancamentoFormTiposExcluidosTests(TestCase):
         form = LancamentoForm(instance=p)
         self.assertTrue(form.fields["tipo"].disabled)
 
+
+
+class MarcarPagoViewTests(TestCase):
+    def test_marcar_pago_com_data_informada(self):
+        hoje = date.today()
+        conta = Conta.objects.create(nome="Banco Pago", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        lancamento = Lancamento.objects.create(
+            descricao="Conta de luz",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=hoje,
+            valor=Decimal("80.00"),
+            conta=conta,
+            competencia_ano=hoje.year,
+            competencia_mes=hoje.month,
+        )
+        response = self.client.post(
+            reverse("lancamentos:marcar_pago", args=[lancamento.pk]),
+            {"data_pagamento": hoje.isoformat()},
+        )
+        self.assertEqual(response.status_code, 204)
+        lancamento.refresh_from_db()
+        self.assertEqual(lancamento.data_pagamento, hoje)
 
 
 class CriarLancamentoViewTests(TestCase):

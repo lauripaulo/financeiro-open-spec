@@ -431,13 +431,15 @@ class VisaoPatrimonioTests(TestCase):
         response = self.client.get(reverse("visualizacao:patrimonio"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Visao de patrimonio: Total R$ 180.023,23")
+        self.assertContains(response, "Patrimonio total")
+        self.assertContains(response, "R$ 180.023,23")
 
     def test_titulo_exibe_total_zerado_sem_contas_investimento(self):
         response = self.client.get(reverse("visualizacao:patrimonio"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Visao de patrimonio: Total R$ 0,00")
+        self.assertContains(response, "Patrimonio total")
+        self.assertContains(response, "R$ 0,00")
 
 
 class TransferirPendenteTests(TestCase):

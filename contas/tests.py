@@ -4,9 +4,26 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from contas.forms import ContaForm
 from contas.models import Conta
 from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
+
+
+class ContaFormCamposCondicionaisTests(TestCase):
+    def test_cartao_submetido_sem_campos_de_banco_e_valido(self):
+        """Campos escondidos ficam disabled no browser e nao sao submetidos:
+        cartao so envia nome, tipo e dia_vencimento."""
+        form = ContaForm(data={"nome": "Cartao X", "tipo": Conta.Tipo.CARTAO, "dia_vencimento": 10})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_banco_submetido_sem_dia_vencimento_e_valido(self):
+        form = ContaForm(data={"nome": "Banco X", "tipo": Conta.Tipo.BANCO, "saldo_atual": "100.00"})
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_investimento_submetido_so_com_saldo_e_valido(self):
+        form = ContaForm(data={"nome": "Invest X", "tipo": Conta.Tipo.INVESTIMENTO, "saldo_atual": "500.00"})
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class MoedaWidgetTests(TestCase):

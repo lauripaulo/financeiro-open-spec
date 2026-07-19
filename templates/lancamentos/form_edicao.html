@@ -3,6 +3,7 @@
 {% block title %}Editar lancamento{% endblock %}
 
 {% block content %}
+<div class="form-page">
 <section class="m3-card">
     <h2>Editar lancamento</h2>
     {% if encerrado %}
@@ -10,11 +11,21 @@
         <p>Voce realmente quer editar um mes ja encerrado?</p>
     </div>
     {% endif %}
+    {% if lancamento.lancamento_vinculado %}
+    <div class="m3-banner m3-banner--info">
+        <p>Vinculado a: {{ lancamento.lancamento_vinculado.descricao }} ({{ lancamento.lancamento_vinculado.conta.nome }})</p>
+    </div>
+    {% endif %}
     <form method="post">
         {% csrf_token %}
-        {% for field in form %}
-            {% include "_partials/field.html" with field=field %}
-        {% endfor %}
+        {% include "_partials/form_errors.html" %}
+        <div class="form-grid">
+            {% include "_partials/field.html" with field=form.descricao span="full" %}
+            {% include "_partials/field.html" with field=form.tipo span="full" %}
+            {% include "_partials/field.html" with field=form.conta span="full" %}
+            {% include "_partials/field.html" with field=form.data_vencimento %}
+            {% include "_partials/field.html" with field=form.valor %}
+        </div>
         {% if encerrado %}
         <label class="m3-checkbox-label">
             <input type="checkbox" name="confirmar_edicao_mes_encerrado" value="1" required>
@@ -24,4 +35,5 @@
         <button type="submit" class="m3-button--filled">Salvar alteracoes</button>
     </form>
 </section>
+</div>
 {% endblock %}

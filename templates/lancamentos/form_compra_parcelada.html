@@ -3,16 +3,24 @@
 {% block title %}Compra parcelada{% endblock %}
 
 {% block content %}
+<div class="form-page">
 <section class="m3-card">
     <h2>Nova compra parcelada</h2>
     <form method="post">
         {% csrf_token %}
-        {% for field in form %}
-            {% include "_partials/field.html" with field=field %}
-        {% endfor %}
+        {% include "_partials/form_errors.html" %}
+        <div class="form-grid">
+            {% include "_partials/field.html" with field=form.descricao span="full" %}
+            {% include "_partials/field.html" with field=form.conta span="full" %}
+            {% include "_partials/field.html" with field=form.valor_total %}
+            {% include "_partials/field.html" with field=form.data_compra %}
+            {% include "_partials/field.html" with field=form.total_parcelas %}
+            {% include "_partials/field.html" with field=form.parcelas_pagas %}
+        </div>
         <button type="submit" class="m3-button--filled">Gerar parcelas</button>
     </form>
 </section>
+</div>
 
 <script>
     (function () {
