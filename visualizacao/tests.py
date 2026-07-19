@@ -7,7 +7,8 @@ from django.utils import timezone
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
-from meses.services import criar_mes, transferir_pendente_para_mes
+from meses.services import criar_mes, saldo_do_mes, transferir_pendente_para_mes
+from visualizacao.services import resumo_consolidado
 from visualizacao.templatetags.moeda import moeda
 from visualizacao.views import _filtros_mes
 
@@ -85,6 +86,149 @@ class FiltrosMesTests(TestCase):
         ano, mes = _filtros_mes(request)
         self.assertEqual(ano, 2025)
         self.assertEqual(mes, 6)
+
+
+class ResumoConsolidadoServiceTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(
+            nome="Banco A",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("500.00"),
+        )
+        self.cartao = Conta.objects.create(nome="Cartao B", tipo=Conta.Tipo.CARTAO)
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+
+    def _lancar(self, conta, tipo, valor, dia=10, data_pagamento=None):
+        return Lancamento.objects.create(
+            descricao=f"{tipo} {valor}",
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, dia),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+    def test_resumo_basico_sem_http(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.banco, Lancamento.Tipo.GASTO_FIXO, Decimal("100.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        resumo = resumo_consolidado(self.ano, self.mes)
+
+        self.assertEqual(len(resumo.lancamentos), 3)
+        self.assertEqual(resumo.total_entradas, Decimal("300.00"))
+        self.assertEqual(resumo.total_saidas, Decimal("140.00"))
+        # Banco: 500 + 300 - 100 = 700; Cartao: 0 - 40 = -40
+        self.assertEqual(resumo.saldo_total, Decimal("660.00"))
+        self.assertEqual(len(resumo.contas_ajuste), 2)
+        self.assertEqual(resumo.alertas_limite, [])
+        self.assertIsNone(resumo.conta_selecionada)
+
+    def test_filtro_por_conta_restringe_lista_totais_e_saldo(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        resumo = resumo_consolidado(self.ano, self.mes, conta_id=str(self.banco.pk))
+
+        self.assertTrue(all(l.conta_id == self.banco.pk for l in resumo.lancamentos))
+        self.assertEqual(resumo.total_entradas, Decimal("300.00"))
+        self.assertEqual(resumo.total_saidas, Decimal("0.00"))
+        self.assertEqual(resumo.saldo_total, Decimal("800.00"))
+        self.assertEqual(resumo.conta_selecionada, self.banco)
+
+    def test_filtro_por_status_restringe_lista_totais_e_saldos(self):
+        self._lancar(
+            self.banco,
+            Lancamento.Tipo.RECEBIMENTO_FIXO,
+            Decimal("300.00"),
+            data_pagamento=date(self.ano, self.mes, 5),
+        )
+        self._lancar(self.banco, Lancamento.Tipo.GASTO_FIXO, Decimal("100.00"), dia=28)
+
+        resumo = resumo_consolidado(self.ano, self.mes, status=["PAGO"])
+
+        self.assertEqual(len(resumo.lancamentos), 1)
+        self.assertEqual(resumo.total_entradas, Decimal("300.00"))
+        self.assertEqual(resumo.total_saidas, Decimal("0.00"))
+        self.assertEqual(resumo.saldo_total, Decimal("800.00"))
+
+    def test_conta_investimento_fica_fora_do_resumo(self):
+        investimento = Conta.objects.create(
+            nome="Tesouro",
+            tipo=Conta.Tipo.INVESTIMENTO,
+            saldo_atual=Decimal("10000.00"),
+        )
+        Lancamento.objects.create(
+            descricao="Aporte",
+            tipo=Lancamento.Tipo.APORTE,
+            data_vencimento=date(self.ano, self.mes, 10),
+            valor=Decimal("1000.00"),
+            conta=investimento,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+        resumo = resumo_consolidado(self.ano, self.mes)
+
+        self.assertEqual(resumo.lancamentos, [])
+        self.assertEqual(resumo.saldo_total, Decimal("500.00"))
+        contas = [item["conta"] for item in resumo.contas_ajuste]
+        self.assertNotIn(investimento, contas)
+
+    def test_alertas_cobrem_todas_as_contas_banco_mesmo_com_filtro(self):
+        estourada = Conta.objects.create(
+            nome="Banco Estourado",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("0.00"),
+            limite_negativo=Decimal("100.00"),
+        )
+        self._lancar(estourada, Lancamento.Tipo.GASTO_FIXO, Decimal("500.00"))
+
+        resumo = resumo_consolidado(self.ano, self.mes, conta_id=str(self.banco.pk))
+
+        self.assertIn("Banco Estourado: limite negativo ultrapassado.", resumo.alertas_limite)
+
+    def test_saldos_concordam_com_saldo_do_mes(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(
+            self.banco,
+            Lancamento.Tipo.GASTO_FIXO,
+            Decimal("100.00"),
+            data_pagamento=date(self.ano, self.mes, 5),
+        )
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        for status in (None, ["PAGO"], ["PREVISTO", "PENDENTE"]):
+            resumo = resumo_consolidado(self.ano, self.mes, status=status)
+            esperado = sum(
+                (
+                    saldo_do_mes(conta, self.ano, self.mes, status_incluidos=status)
+                    for conta in (self.banco, self.cartao)
+                ),
+                Decimal("0.00"),
+            )
+            self.assertEqual(resumo.saldo_total, esperado, f"status={status}")
+
+            resumo_banco = resumo_consolidado(
+                self.ano, self.mes, conta_id=str(self.banco.pk), status=status
+            )
+            self.assertEqual(
+                resumo_banco.saldo_total,
+                saldo_do_mes(self.banco, self.ano, self.mes, status_incluidos=status),
+                f"status={status}",
+            )
+
+    def test_passada_unica_tres_consultas(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        # contas + lancamentos + SaldoMensalConta: uma consulta cada,
+        # independente do numero de contas
+        with self.assertNumQueries(3):
+            resumo_consolidado(self.ano, self.mes)
 
 
 class VisaoConsolidadaTests(TestCase):

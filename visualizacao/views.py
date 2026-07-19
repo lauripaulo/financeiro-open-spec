@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
-from meses.models import MesAberto, SaldoMensalConta
+from meses.models import MesAberto
 from meses.services import (
     ajustar_saldo_inicial,
     criar_mes,
@@ -21,6 +21,7 @@ from meses.services import (
     saldo_investimento,
     transferir_pendente_para_mes,
 )
+from visualizacao.services import resumo_consolidado
 
 
 def _erro(request, mensagem):
@@ -73,59 +74,7 @@ def visao_consolidada(request):
     conta_id = request.GET.get("conta")
     status = _parse_status(request)
 
-    contas_base = Conta.objects.filter(tipo__in=[Conta.Tipo.BANCO, Conta.Tipo.CARTAO]).order_by("nome")
-    lancamentos = Lancamento.objects.filter(
-        competencia_ano=ano,
-        competencia_mes=mes,
-        conta__in=contas_base,
-    ).select_related("conta", "lancamento_vinculado__conta").order_by("data_vencimento", "id")
-
-    if conta_id:
-        lancamentos = lancamentos.filter(conta_id=conta_id)
-
-    if status:
-        lancamentos = lancamentos.com_status_in(status)
-
-    lancamentos_lista = list(lancamentos)
-
-    entradas = Decimal("0.00")
-    saidas = Decimal("0.00")
-    for item in lancamentos_lista:
-        if item.direcao == "ENTRADA":
-            entradas += item.valor_absoluto
-        else:
-            saidas += item.valor_absoluto
-
-    conta_selecionada_obj = contas_base.filter(pk=conta_id).first() if conta_id else None
-
-    if conta_selecionada_obj:
-        saldo_total = saldo_do_mes(conta_selecionada_obj, ano, mes, status_incluidos=status)
-    else:
-        saldo_total = Decimal("0.00")
-        for conta in contas_base:
-            saldo_total += saldo_do_mes(conta, ano, mes, status_incluidos=status)
-
-    contas_ajuste = []
-    for conta in contas_base:
-        saldo_inicial = (
-            SaldoMensalConta.objects.filter(conta=conta, ano=ano, mes=mes)
-            .values_list("saldo_inicial", flat=True)
-            .first()
-        )
-        contas_ajuste.append(
-            {
-                "conta": conta,
-                "saldo_inicial": saldo_inicial if saldo_inicial is not None else (conta.saldo_atual or Decimal("0.00")),
-            }
-        )
-
-    alertas_limite = []
-    for conta in contas_base.filter(tipo=Conta.Tipo.BANCO):
-        saldo_conta = saldo_do_mes(conta, ano, mes, status_incluidos=status)
-        if conta.limite_negativo_ultrapassado(saldo_conta):
-            alertas_limite.append(f"{conta.nome}: limite negativo ultrapassado.")
-        elif conta.limite_negativo_proximo(saldo_conta):
-            alertas_limite.append(f"{conta.nome}: saldo proximo do limite negativo.")
+    resumo = resumo_consolidado(ano, mes, conta_id=conta_id, status=status)
 
     (ano_ant, mes_ant), (ano_prox, mes_prox) = mes_anterior_posterior(ano, mes)
     aviso_limite = request.session.pop("aviso_limite_meses", None)
@@ -142,15 +91,15 @@ def visao_consolidada(request):
             "mes_prox": mes_prox,
             "contas": Conta.objects.all().order_by("nome"),
             "conta_selecionada": int(conta_id) if conta_id else None,
-            "conta_selecionada_obj": conta_selecionada_obj,
-            "lancamentos": lancamentos_lista,
+            "conta_selecionada_obj": resumo.conta_selecionada,
+            "lancamentos": resumo.lancamentos,
             "status_ativos": status or [],
-            "total_entradas": entradas,
-            "total_saidas": saidas,
-            "saldo_total": saldo_total,
-            "contas_ajuste": contas_ajuste,
+            "total_entradas": resumo.total_entradas,
+            "total_saidas": resumo.total_saidas,
+            "saldo_total": resumo.saldo_total,
+            "contas_ajuste": resumo.contas_ajuste,
             "pendentes_mes_anterior": pendentes_mes_anterior(ano, mes),
-            "alertas_limite": alertas_limite,
+            "alertas_limite": resumo.alertas_limite,
             "aviso_limite_meses": aviso_limite,
         },
     )

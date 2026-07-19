@@ -28,24 +28,6 @@ def _data_mes_segura(ano, mes, dia):
     return date(ano, mes, min(dia, ultimo_dia))
 
 
-def _saldo_final_periodo(conta, ano, mes):
-    saldo = (
-        SaldoMensalConta.objects.filter(conta=conta, ano=ano, mes=mes)
-        .values_list("saldo_inicial", flat=True)
-        .first()
-    )
-    if saldo is None:
-        saldo = conta.saldo_atual or Decimal("0.00")
-
-    lancamentos = Lancamento.objects.filter(conta=conta, competencia_ano=ano, competencia_mes=mes)
-    for lancamento in lancamentos:
-        if lancamento.direcao == "ENTRADA":
-            saldo += lancamento.valor_absoluto
-        else:
-            saldo -= lancamento.valor_absoluto
-    return saldo
-
-
 def avisar_limite_meses_futuros(ano, mes):
     hoje = date.today()
     diferenca = (ano - hoje.year) * 12 + (mes - hoje.month)
@@ -118,7 +100,7 @@ def criar_mes(ano, mes):
 
     for conta in Conta.objects.all():
         if mes_anterior_existe:
-            saldo_inicial = _saldo_final_periodo(conta, ano_anterior, mes_anterior)
+            saldo_inicial = saldo_do_mes(conta, ano_anterior, mes_anterior)
         else:
             saldo_inicial = conta.saldo_atual or Decimal("0.00")
 
