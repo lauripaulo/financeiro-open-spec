@@ -71,7 +71,8 @@ def visao_consolidada(request):
             },
         )
 
-    conta_id = request.GET.get("conta")
+    conta_param = request.GET.get("conta")
+    conta_id = int(conta_param) if conta_param else None
     status = _parse_status(request)
 
     resumo = resumo_consolidado(ano, mes, conta_id=conta_id, status=status)
@@ -90,7 +91,7 @@ def visao_consolidada(request):
             "ano_prox": ano_prox,
             "mes_prox": mes_prox,
             "contas": Conta.objects.all().order_by("nome"),
-            "conta_selecionada": int(conta_id) if conta_id else None,
+            "conta_selecionada": conta_id,
             "conta_selecionada_obj": resumo.conta_selecionada,
             "lancamentos": resumo.lancamentos,
             "status_ativos": status or [],

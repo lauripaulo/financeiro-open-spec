@@ -13,14 +13,14 @@
 
 ## 3. Parse de conta_id na view
 
-- [ ] 3.1 `visao_consolidada` converte `request.GET.get("conta")` para `int` uma unica vez e passa `conta_id: int | None` ao service; service deixa de chamar `int()`
-- [ ] 3.2 Ajustar testes do service que passavam `conta_id` como string para passar `int`
+- [x] 3.1 `visao_consolidada` converte `request.GET.get("conta")` para `int` uma unica vez e passa `conta_id: int | None` ao service; service deixa de chamar `int()`
+- [x] 3.2 Ajustar testes do service que passavam `conta_id` como string para passar `int`
 
 ## 4. Concordancia por conta
 
-- [ ] 4.1 Reescrever `test_saldos_concordam_com_saldo_do_mes`: para CADA conta (banco e cartao), `resumo_consolidado(ano, mes, conta_id=conta.pk, status=...).saldo_total == saldo_do_mes(conta, ...)`, com `status` em `None`, `["PAGO"]` e `["PREVISTO", "PENDENTE"]`
+- [x] 4.1 Reescrever `test_saldos_concordam_com_saldo_do_mes`: para CADA conta (banco e cartao), `resumo_consolidado(ano, mes, conta_id=conta.pk, status=...).saldo_total == saldo_do_mes(conta, ...)`, com `status` em `None`, `["PAGO"]` e `["PREVISTO", "PENDENTE"]`
 
 ## 5. Encerramento
 
-- [ ] 5.1 Suite completa (`manage.py test`) verde; grep confirmando que agregacao de saldo final so existe em `meses/services.py`
-- [ ] 5.2 `openspec validate --changes` nas duas changes ativas; registrar ordem de arquivamento (primeiro `add-resumo-consolidado-service`, depois esta)
+- [x] 5.1 Suite completa (`manage.py test`) verde; grep confirmando que agregacao de saldo final so existe em `meses/services.py`
+- [x] 5.2 `openspec validate --changes` nas duas changes ativas; registrar ordem de arquivamento (primeiro `add-resumo-consolidado-service`, depois esta)

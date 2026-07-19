@@ -45,7 +45,6 @@ def resumo_consolidado(ano, mes, conta_id=None, status=None):
 
     conta_selecionada = None
     if conta_id:
-        conta_id = int(conta_id)
         conta_selecionada = next((c for c in contas_base if c.pk == conta_id), None)
         lancamentos_exibidos = [item for item in lancamentos_mes if item.conta_id == conta_id]
     else:
