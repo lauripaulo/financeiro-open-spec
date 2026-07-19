@@ -41,12 +41,29 @@ O sistema SHALL garantir, para todo elemento interativo (botoes, links de acao,
 campos de formulario, checkboxes) nas paginas migradas, uma area de toque minima de
 48x48dp, contraste de texto adequado (AA) entre cor de texto e cor de fundo definida
 pelos tokens M3, e um indicador visual de foco perceptivel ao navegar via teclado.
+Todo botao ou link de acao que exiba apenas um icone, sem texto visivel, SHALL
+possuir rotulo acessivel (`aria-label`) descrevendo a acao. Botoes somente-icone
+SHALL ser usados apenas para acoes CRUD padronizadas (ex.: Editar, Excluir, Pagar)
+em celulas de acao de tabelas ou listas; acoes de decisao de fluxo ou destrutivas
+com mais de uma opcao SHALL manter rotulo textual visivel.
 
 #### Scenario: Botao de acao tem area de toque adequada
 - GIVEN um botao de acao (ex.: "Editar", "Excluir") em qualquer tabela de listagem
 - WHEN o elemento e inspecionado
 - THEN sua area de toque efetiva SHALL ser de no minimo 48x48dp, mesmo que o
   elemento visual seja menor
+
+#### Scenario: Botao somente-icone possui rotulo acessivel
+- GIVEN um botao ou link de acao que exibe apenas um icone, sem texto visivel
+- WHEN o elemento e inspecionado
+- THEN o elemento SHALL possuir `aria-label` descrevendo a acao
+- AND SHALL possuir `title` com o mesmo texto para dica visual ao passar o mouse
+
+#### Scenario: Decisao de fluxo mantem rotulo textual
+- GIVEN uma acao de decisao de fluxo (ex.: Transferir/Manter pendente) ou uma
+  escolha destrutiva com mais de uma opcao (ex.: excluir lancamento com par vinculado)
+- WHEN a acao e exibida ao usuario
+- THEN o botao SHALL exibir rotulo textual visivel, nao apenas icone
 
 #### Scenario: Navegacao por teclado exibe foco visivel
 - GIVEN o usuario navega pela pagina usando apenas o teclado (Tab)

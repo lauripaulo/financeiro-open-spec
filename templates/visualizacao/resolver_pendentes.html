@@ -20,11 +20,11 @@
                 <div class="m3-list-item__actions">
                     <form method="post" action="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" class="m3-inline-form" hx-post="{% url 'visualizacao:transferir_pendente' item.id %}?ano={{ ano }}&mes={{ mes }}" hx-target="#flash-area" hx-swap="innerHTML">
                         {% csrf_token %}
-                        <button type="submit" class="m3-button--filled">Transferir para o novo mes</button>
+                        <button type="submit" class="m3-button--filled" title="Transferir para o novo mes">Transferir</button>
                     </form>
                     <form method="post" action="{% url 'visualizacao:manter_pendente' item.id %}" class="m3-inline-form" hx-post="{% url 'visualizacao:manter_pendente' item.id %}" hx-target="#flash-area" hx-swap="innerHTML">
                         {% csrf_token %}
-                        <button type="submit" class="m3-button--outlined">Manter no mes anterior</button>
+                        <button type="submit" class="m3-button--outlined" title="Manter no mes anterior">Manter</button>
                     </form>
                 </div>
             </li>
