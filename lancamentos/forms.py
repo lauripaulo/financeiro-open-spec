@@ -6,19 +6,8 @@ from contas.models import Conta
 from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
 from lancamentos.services import gerar_transferencia
+from lancamentos.widgets import ContaSelect
 from parcelas.services import gerar_parcelas_da_compra
-
-
-class ContaSelect(forms.Select):
-    """Select de conta que expoe o tipo da conta em cada option, para o filtro
-    tipo->conta feito em conditional-fields.js."""
-
-    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
-        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
-        instance = getattr(value, "instance", None)
-        if instance is not None:
-            option["attrs"]["data-conta-tipo"] = instance.tipo
-        return option
 
 
 class LancamentoForm(forms.ModelForm):
@@ -50,6 +39,11 @@ class LancamentoForm(forms.ModelForm):
             for escolha in self.fields["tipo"].choices
             if escolha[0] not in excluidos
         ]
+        # Fonte unica dos tipos exclusivos de Investimento para o filtro
+        # tipo->conta em conditional-fields.js
+        self.fields["tipo"].widget.attrs["data-tipos-investimento"] = ",".join(
+            sorted(Lancamento.TIPOS_INVESTIMENTO)
+        )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -72,13 +66,10 @@ class LancamentoForm(forms.ModelForm):
                     "Transferencia nao pode ser criada manualmente. Use o fluxo de transferencia entre contas.",
                 )
 
-        if tipo in {Lancamento.Tipo.APORTE, Lancamento.Tipo.RESGATE} and conta and conta.tipo != Conta.Tipo.INVESTIMENTO:
+        if tipo in Lancamento.TIPOS_INVESTIMENTO and conta and conta.tipo != Conta.Tipo.INVESTIMENTO:
             self.add_error("conta", "Aporte e Resgate sao exclusivos de contas Investimento.")
 
-        if conta and conta.tipo == Conta.Tipo.INVESTIMENTO and tipo not in {
-            Lancamento.Tipo.APORTE,
-            Lancamento.Tipo.RESGATE,
-        }:
+        if conta and conta.tipo == Conta.Tipo.INVESTIMENTO and tipo not in Lancamento.TIPOS_INVESTIMENTO:
             self.add_error("tipo", "Conta Investimento aceita somente Aporte e Resgate no cadastro manual.")
 
         return cleaned_data

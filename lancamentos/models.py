@@ -73,6 +73,11 @@ class Lancamento(models.Model):
         Tipo.ASSINATURA,
     }
 
+    TIPOS_INVESTIMENTO = {
+        Tipo.APORTE,
+        Tipo.RESGATE,
+    }
+
     TIPOS_ENTRADA = {
         Tipo.RECEBIMENTO_FIXO,
         Tipo.RECEBIMENTO_EXCEPCIONAL,
@@ -165,7 +170,7 @@ class Lancamento(models.Model):
         if self.tipo == self.Tipo.CONCILIACAO and not self.gerado_automaticamente:
             errors["tipo"] = "Conciliacao e criada apenas automaticamente pelo sistema."
 
-        if conta_tipo is not None and self.tipo in {self.Tipo.APORTE, self.Tipo.RESGATE} and conta_tipo != Conta.Tipo.INVESTIMENTO:
+        if conta_tipo is not None and self.tipo in self.TIPOS_INVESTIMENTO and conta_tipo != Conta.Tipo.INVESTIMENTO:
             errors["tipo"] = "Aporte e Resgate sao exclusivos de contas Investimento."
 
         if conta_tipo == Conta.Tipo.INVESTIMENTO and self.tipo not in {

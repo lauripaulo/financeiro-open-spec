@@ -10,11 +10,14 @@
  *
  * 2. Filtro tipo->conta no formulario de lancamento:
  *    options de conta com data-conta-tipo="BANCO|CARTAO|INVESTIMENTO".
- *    APORTE/RESGATE mostram apenas contas Investimento; os demais tipos
- *    escondem contas Investimento. Selecao incompativel e limpa.
+ *    Tipos exclusivos de Investimento chegam do servidor via atributo
+ *    data-tipos-investimento no select de tipo (fonte unica:
+ *    Lancamento.TIPOS_INVESTIMENTO). Esses tipos mostram apenas contas
+ *    Investimento; os demais escondem contas Investimento. Options
+ *    incompativeis sao removidas do DOM (option[hidden] nao funciona no
+ *    Safari) e selecao incompativel e limpa.
  */
 (function () {
-    var TIPOS_INVESTIMENTO = ["APORTE", "RESGATE"];
 
     function setupShowWhen(form) {
         var wrappers = form.querySelectorAll("[data-show-when]");
@@ -75,22 +78,30 @@
             return;
         }
 
+        var tiposInvestimento = (tipoSelect.getAttribute("data-tipos-investimento") || "").split(",");
+        var todasOptions = Array.prototype.slice.call(contaSelect.options);
+
         function apply() {
-            var investimento = TIPOS_INVESTIMENTO.indexOf(tipoSelect.value) !== -1;
-            Array.prototype.forEach.call(contaSelect.options, function (option) {
+            var investimento = tiposInvestimento.indexOf(tipoSelect.value) !== -1;
+            var selecionada = contaSelect.value;
+
+            while (contaSelect.options.length) {
+                contaSelect.remove(0);
+            }
+            todasOptions.forEach(function (option) {
                 var contaTipo = option.getAttribute("data-conta-tipo");
-                if (!contaTipo) {
-                    return; // opcao vazia ("---------") sempre visivel
-                }
-                var compativel = investimento
-                    ? contaTipo === "INVESTIMENTO"
-                    : contaTipo !== "INVESTIMENTO";
-                option.hidden = !compativel;
-                option.disabled = !compativel;
-                if (!compativel && option.selected) {
-                    contaSelect.value = "";
+                var compativel = !contaTipo || ( // opcao vazia ("---------") sempre visivel
+                    investimento ? contaTipo === "INVESTIMENTO" : contaTipo !== "INVESTIMENTO"
+                );
+                if (compativel) {
+                    contaSelect.add(option);
                 }
             });
+
+            contaSelect.value = selecionada;
+            if (contaSelect.selectedIndex === -1) {
+                contaSelect.value = "";
+            }
         }
 
         tipoSelect.addEventListener("change", apply);

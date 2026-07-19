@@ -500,12 +500,6 @@ select:focus-visible,
   grid-column: 1 / -1;
 }
 
-@media (max-width: 640px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Conditional fields (see conditional-fields.js) */
 .m3-field--hidden {
   display: none;
@@ -643,4 +637,13 @@ select:focus-visible,
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+
+/* Barra unica de navegacao + filtros (consolidada, comparativo) */
+.m3-toolbar--filters {
+  align-items: flex-end;
+}
+
+form.m3-form--inline.m3-toolbar--filters {
+  flex-wrap: wrap;
 }

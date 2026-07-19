@@ -8,9 +8,7 @@
     <h2>Nova compra parcelada</h2>
     <form method="post">
         {% csrf_token %}
-        {% for error in form.non_field_errors %}
-        <div class="m3-banner m3-banner--error"><p>{{ error }}</p></div>
-        {% endfor %}
+        {% include "_partials/form_errors.html" %}
         <div class="form-grid">
             {% include "_partials/field.html" with field=form.descricao span="full" %}
             {% include "_partials/field.html" with field=form.conta span="full" %}
