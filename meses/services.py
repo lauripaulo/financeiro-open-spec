@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 import calendar
@@ -223,26 +224,51 @@ def ajustar_saldo_inicial(conta, ano, mes, novo_saldo):
     return registro, conciliacao
 
 
-def saldo_do_mes(conta, ano, mes, status_incluidos=None):
-    saldo = (
-        SaldoMensalConta.objects.filter(conta=conta, ano=ano, mes=mes)
-        .values_list("saldo_inicial", flat=True)
-        .first()
-    )
-    if saldo is None:
-        saldo = conta.saldo_atual or Decimal("0.00")
+@dataclass(frozen=True)
+class SaldoConta:
+    inicial: Decimal
+    final: Decimal
 
-    lancamentos = Lancamento.objects.filter(conta=conta, competencia_ano=ano, competencia_mes=mes)
+
+def saldos_do_mes(contas, ano, mes, status_incluidos=None):
+    """Regra de saldo mensal por conta — implementacao unica do sistema.
+
+    Saldo inicial registrado em SaldoMensalConta (fallback em
+    conta.saldo_atual) + entradas - saidas do mes. Versao batch: numero
+    de consultas independe do numero de contas (uma de SaldoMensalConta,
+    uma de Lancamento). Retorna {conta_id: SaldoConta(inicial, final)}.
+    """
+    contas = list(contas)
+    registrados = dict(
+        SaldoMensalConta.objects.filter(conta__in=contas, ano=ano, mes=mes).values_list(
+            "conta_id", "saldo_inicial"
+        )
+    )
+
+    lancamentos = Lancamento.objects.filter(
+        conta__in=contas, competencia_ano=ano, competencia_mes=mes
+    )
     if status_incluidos:
         lancamentos = lancamentos.com_status_in(status_incluidos)
 
+    movimentos = {conta.pk: Decimal("0.00") for conta in contas}
     for lancamento in lancamentos:
         if lancamento.direcao == "ENTRADA":
-            saldo += lancamento.valor_absoluto
+            movimentos[lancamento.conta_id] += lancamento.valor_absoluto
         else:
-            saldo -= lancamento.valor_absoluto
+            movimentos[lancamento.conta_id] -= lancamento.valor_absoluto
 
-    return saldo
+    saldos = {}
+    for conta in contas:
+        inicial = registrados.get(conta.pk)
+        if inicial is None:
+            inicial = conta.saldo_atual or Decimal("0.00")
+        saldos[conta.pk] = SaldoConta(inicial=inicial, final=inicial + movimentos[conta.pk])
+    return saldos
+
+
+def saldo_do_mes(conta, ano, mes, status_incluidos=None):
+    return saldos_do_mes([conta], ano, mes, status_incluidos=status_incluidos)[conta.pk].final
 
 
 def saldo_investimento(conta, ate_ano=None, ate_mes=None):

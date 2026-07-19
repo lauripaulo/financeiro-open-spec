@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
-from meses.models import SaldoMensalConta
+from meses.services import saldos_do_mes
 
 
 @dataclass(frozen=True)
@@ -21,10 +21,10 @@ def resumo_consolidado(ano, mes, conta_id=None, status=None):
     """Computa o resumo consolidado do mes para contas Banco e Cartao.
 
     Retorna lancamentos filtrados, totais, saldos por conta e alertas de
-    limite em passada unica: uma consulta de lancamentos do mes e uma de
-    SaldoMensalConta. A regra de saldo aplicada por conta e a mesma de
-    meses.services.saldo_do_mes (saldo inicial com fallback em
-    conta.saldo_atual + entradas - saidas).
+    limite com numero constante de consultas (4): contas, lancamentos
+    exibidos e as duas de meses.services.saldos_do_mes — a implementacao
+    unica da regra de saldo mensal, da qual saem os saldos iniciais
+    (contas_ajuste) e finais (saldo_total, alertas).
     """
     contas_base = list(
         Conta.objects.filter(tipo__in=[Conta.Tipo.BANCO, Conta.Tipo.CARTAO]).order_by("nome")
@@ -59,27 +59,11 @@ def resumo_consolidado(ano, mes, conta_id=None, status=None):
         else:
             total_saidas += item.valor_absoluto
 
-    saldos_iniciais_registrados = dict(
-        SaldoMensalConta.objects.filter(conta__in=contas_base, ano=ano, mes=mes).values_list(
-            "conta_id", "saldo_inicial"
-        )
-    )
-
-    movimento_por_conta = {conta.pk: Decimal("0.00") for conta in contas_base}
-    for item in lancamentos_mes:
-        if item.direcao == "ENTRADA":
-            movimento_por_conta[item.conta_id] += item.valor_absoluto
-        else:
-            movimento_por_conta[item.conta_id] -= item.valor_absoluto
-
-    contas_ajuste = []
-    saldo_por_conta = {}
-    for conta in contas_base:
-        saldo_inicial = saldos_iniciais_registrados.get(conta.pk)
-        if saldo_inicial is None:
-            saldo_inicial = conta.saldo_atual or Decimal("0.00")
-        contas_ajuste.append({"conta": conta, "saldo_inicial": saldo_inicial})
-        saldo_por_conta[conta.pk] = saldo_inicial + movimento_por_conta[conta.pk]
+    saldos = saldos_do_mes(contas_base, ano, mes, status_incluidos=status)
+    contas_ajuste = [
+        {"conta": conta, "saldo_inicial": saldos[conta.pk].inicial} for conta in contas_base
+    ]
+    saldo_por_conta = {conta.pk: saldos[conta.pk].final for conta in contas_base}
 
     if conta_selecionada:
         saldo_total = saldo_por_conta[conta_selecionada.pk]

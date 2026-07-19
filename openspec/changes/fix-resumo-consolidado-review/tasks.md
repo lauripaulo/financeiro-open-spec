@@ -2,14 +2,14 @@
 
 ## 1. Batch saldos_do_mes em meses
 
-- [ ] 1.1 Criar dataclass congelada `SaldoConta(inicial, final)` e funcao `saldos_do_mes(contas, ano, mes, status_incluidos=None)` em `meses/services.py`: uma consulta de `SaldoMensalConta` (`conta__in`) + uma de `Lancamento` (`conta__in`, `com_status_in` opcional), retorna `{conta_id: SaldoConta}`
-- [ ] 1.2 Reescrever `saldo_do_mes(conta, ano, mes, status_incluidos=None)` como wrapper: `saldos_do_mes([conta], ...)[conta.pk].final` — assinatura e retorno preservados
-- [ ] 1.3 Testes em `meses/tests.py`: batch com multiplas contas (fallback `saldo_atual`, filtro de status) e concordancia batch == wrapper escalar por conta
+- [x] 1.1 Criar dataclass congelada `SaldoConta(inicial, final)` e funcao `saldos_do_mes(contas, ano, mes, status_incluidos=None)` em `meses/services.py`: uma consulta de `SaldoMensalConta` (`conta__in`) + uma de `Lancamento` (`conta__in`, `com_status_in` opcional), retorna `{conta_id: SaldoConta}`
+- [x] 1.2 Reescrever `saldo_do_mes(conta, ano, mes, status_incluidos=None)` como wrapper: `saldos_do_mes([conta], ...)[conta.pk].final` — assinatura e retorno preservados
+- [x] 1.3 Testes em `meses/tests.py`: batch com multiplas contas (fallback `saldo_atual`, filtro de status) e concordancia batch == wrapper escalar por conta
 
 ## 2. resumo_consolidado consome o batch
 
-- [ ] 2.1 Remover de `visualizacao/services.py` a regra inline (`movimento_por_conta`, fallback e consulta propria de `SaldoMensalConta`); obter `{conta_id: SaldoConta}` via `saldos_do_mes` e derivar `contas_ajuste` (inicial) e `saldo_por_conta` (final) da mesma chamada
-- [ ] 2.2 Corrigir docstring com o orcamento real de consultas; atualizar `test_passada_unica_tres_consultas` para o novo numero constante (renomear coerentemente)
+- [x] 2.1 Remover de `visualizacao/services.py` a regra inline (`movimento_por_conta`, fallback e consulta propria de `SaldoMensalConta`); obter `{conta_id: SaldoConta}` via `saldos_do_mes` e derivar `contas_ajuste` (inicial) e `saldo_por_conta` (final) da mesma chamada
+- [x] 2.2 Corrigir docstring com o orcamento real de consultas; atualizar `test_passada_unica_tres_consultas` para o novo numero constante (renomear coerentemente)
 
 ## 3. Parse de conta_id na view
 

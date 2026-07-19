@@ -221,13 +221,13 @@ class ResumoConsolidadoServiceTests(TestCase):
                 f"status={status}",
             )
 
-    def test_passada_unica_tres_consultas(self):
+    def test_numero_constante_de_consultas(self):
         self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
         self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
 
-        # contas + lancamentos + SaldoMensalConta: uma consulta cada,
-        # independente do numero de contas
-        with self.assertNumQueries(3):
+        # contas + lancamentos exibidos + as duas de saldos_do_mes
+        # (SaldoMensalConta e Lancamento), independente do numero de contas
+        with self.assertNumQueries(4):
             resumo_consolidado(self.ano, self.mes)
 
 
