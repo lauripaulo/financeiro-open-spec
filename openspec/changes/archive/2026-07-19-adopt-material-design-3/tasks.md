@@ -115,3 +115,11 @@
 - [x] 8.2 Migrate `templates/visualizacao/consolidada.html` action buttons to icon-only buttons with `aria-label` and `title` attributes
 - [x] 8.3 Migrate `templates/contas/lista.html` action buttons to icon-only buttons with `aria-label` and `title` attributes
 - [x] 8.4 Verify layout alignment and visual appearance of icon-only buttons across all viewport widths
+- [x] 8.5 Harmonize pendente flow-action labels: `resolver_pendentes.html` uses the
+      same short labels as `consolidada.html` ("Transferir"/"Manter", full phrase in
+      `title`); flow decisions stay text-labeled per the amended design rule
+
+> Verification note (2026-07-19): tasks 7.2 and 7.4–7.7 were performed manually
+> (browser walk, DevTools contrast, Lighthouse, keyboard pass, money-mask typing)
+> during the icon-only follow-up session and marked complete in batch at archive
+> time. No evidence artifacts are stored in the repo.
