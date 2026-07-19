@@ -14,6 +14,7 @@ from meses.services import (
     elegivel_para_transferencia,
     excluir_serie_futura,
     saldo_do_mes,
+    saldos_do_mes,
     atualizar_serie_futura,
     transferir_pendente_para_mes,
 )
@@ -28,6 +29,78 @@ def _mes_seguinte(ano, mes):
     if mes == 12:
         return ano + 1, 1
     return ano, mes + 1
+
+
+class SaldosDoMesTests(TestCase):
+    def setUp(self):
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.banco = Conta.objects.create(
+            nome="Banco Batch",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("500.00"),
+        )
+        self.cartao = Conta.objects.create(nome="Cartao Batch", tipo=Conta.Tipo.CARTAO)
+
+    def _lancar(self, conta, tipo, valor, data_pagamento=None):
+        return Lancamento.objects.create(
+            descricao=f"{tipo} {valor}",
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, 10),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+    def test_batch_multiplas_contas_com_fallback(self):
+        # Contas criadas apos criar_mes: sem SaldoMensalConta, fallback em saldo_atual
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.banco, Lancamento.Tipo.GASTO_FIXO, Decimal("100.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        saldos = saldos_do_mes([self.banco, self.cartao], self.ano, self.mes)
+
+        self.assertEqual(saldos[self.banco.pk].inicial, Decimal("500.00"))
+        self.assertEqual(saldos[self.banco.pk].final, Decimal("700.00"))
+        self.assertEqual(saldos[self.cartao.pk].inicial, Decimal("0.00"))
+        self.assertEqual(saldos[self.cartao.pk].final, Decimal("-40.00"))
+
+    def test_batch_usa_saldo_inicial_registrado(self):
+        SaldoMensalConta.objects.create(
+            conta=self.banco, ano=self.ano, mes=self.mes, saldo_inicial=Decimal("1000.00")
+        )
+        saldos = saldos_do_mes([self.banco], self.ano, self.mes)
+        self.assertEqual(saldos[self.banco.pk].inicial, Decimal("1000.00"))
+        self.assertEqual(saldos[self.banco.pk].final, Decimal("1000.00"))
+
+    def test_batch_respeita_filtro_de_status(self):
+        self._lancar(
+            self.banco,
+            Lancamento.Tipo.RECEBIMENTO_FIXO,
+            Decimal("300.00"),
+            data_pagamento=date(self.ano, self.mes, 5),
+        )
+        self._lancar(self.banco, Lancamento.Tipo.GASTO_FIXO, Decimal("100.00"))
+
+        saldos = saldos_do_mes([self.banco], self.ano, self.mes, status_incluidos=["PAGO"])
+        self.assertEqual(saldos[self.banco.pk].final, Decimal("800.00"))
+
+    def test_batch_concorda_com_wrapper_escalar(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        saldos = saldos_do_mes([self.banco, self.cartao], self.ano, self.mes)
+        for conta in (self.banco, self.cartao):
+            self.assertEqual(saldos[conta.pk].final, saldo_do_mes(conta, self.ano, self.mes))
+
+    def test_batch_numero_de_consultas_constante(self):
+        self._lancar(self.banco, Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("300.00"))
+        self._lancar(self.cartao, Lancamento.Tipo.GASTO_VARIAVEL, Decimal("40.00"))
+
+        with self.assertNumQueries(2):
+            saldos_do_mes([self.banco, self.cartao], self.ano, self.mes)
 
 
 class MesesServicesTests(TestCase):
