@@ -153,6 +153,14 @@ select:focus-visible,
   cursor: not-allowed;
 }
 
+.m3-button--icon-only {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
 .m3-icon {
   font-family: "Material Symbols Outlined";
   font-size: 1.125rem;

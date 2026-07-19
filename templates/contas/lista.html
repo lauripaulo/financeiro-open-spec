@@ -37,13 +37,13 @@
                 <td>{{ conta.limite_negativo|moeda }}</td>
                 <td>{{ conta.dia_vencimento|default:"-" }}</td>
                 <td class="m3-actions-cell">
-                    <a class="m3-button--outlined" href="{% url 'contas:editar' conta.id %}">
-                        <span class="m3-icon" aria-hidden="true">edit</span> Editar
+                    <a class="m3-button--outlined m3-button--icon-only" href="{% url 'contas:editar' conta.id %}" aria-label="Editar" title="Editar">
+                        <span class="m3-icon" aria-hidden="true">edit</span>
                     </a>
                     <form method="post" action="{% url 'contas:excluir' conta.id %}" class="m3-inline-form" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
                         {% csrf_token %}
-                        <button type="submit" class="m3-button--outlined">
-                            <span class="m3-icon" aria-hidden="true">delete</span> Excluir
+                        <button type="submit" class="m3-button--outlined m3-button--icon-only" aria-label="Excluir" title="Excluir">
+                            <span class="m3-icon" aria-hidden="true">delete</span>
                         </button>
                     </form>
                 </td>
