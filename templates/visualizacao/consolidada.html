@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load moeda %}
+{% load moeda descricao %}
 
 {% block title %}Visao consolidada{% endblock %}
 
@@ -107,7 +107,12 @@
         <tbody>
         {% for item in lancamentos %}
             <tr>
-                <td>{{ item.descricao }}</td>
+                <td class="m3-cell-descricao"{% if item.detalhes %} title="{{ item.detalhes }}"{% endif %}>
+                    {% with partes=item.descricao|partes_descricao %}
+                        {{ partes.0 }}
+                        {% if partes.1 %}<span class="m3-descricao-secundaria">{{ partes.1 }}</span>{% endif %}
+                    {% endwith %}
+                </td>
                 <td>{% if item.direcao == "ENTRADA" %}+{{ item.valor_absoluto|moeda }}{% endif %}</td>
                 <td>{% if item.direcao == "SAIDA" %}-{{ item.valor_absoluto|moeda }}{% endif %}</td>
                 <td>{{ item.conta.nome }}</td>
@@ -156,6 +161,21 @@
         </tbody>
     </table>
     </div>
+    {% if pagina.paginator.num_pages > 1 %}
+    <nav class="m3-toolbar" aria-label="Paginacao das movimentacoes">
+        {% if pagina.has_previous %}
+        <a class="m3-button--text" href="?ano={{ ano }}&mes={{ mes }}{% if conta_selecionada %}&conta={{ conta_selecionada }}{% endif %}{% for s in status_ativos %}&status={{ s }}{% endfor %}&pagina={{ pagina.previous_page_number }}">
+            <span class="m3-icon" aria-hidden="true">chevron_left</span> Anterior
+        </a>
+        {% endif %}
+        <span>Pagina {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+        {% if pagina.has_next %}
+        <a class="m3-button--text" href="?ano={{ ano }}&mes={{ mes }}{% if conta_selecionada %}&conta={{ conta_selecionada }}{% endif %}{% for s in status_ativos %}&status={{ s }}{% endfor %}&pagina={{ pagina.next_page_number }}">
+            Proxima <span class="m3-icon" aria-hidden="true">chevron_right</span>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
 </section>
 
 <details class="m3-collapsible">

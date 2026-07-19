@@ -1167,3 +1167,26 @@ class FluxoViewSobrescreverTests(ImportacaoContaBase):
         self.assertContains(resposta, "corrigido pelo extrato")
         lanc.refresh_from_db()
         self.assertEqual(lanc.data_pagamento, date(2026, 7, 10))
+
+
+class TabelaItensDescricaoTests(TestCase):
+    def test_descricao_com_separador_gera_linha_secundaria(self):
+        from django.template.loader import render_to_string
+
+        html = render_to_string(
+            "importacao/_tabela_itens.html",
+            {
+                "itens": [
+                    {
+                        "descricao": "Pix enviado - Fulano de Tal",
+                        "valor": Decimal("10.00"),
+                        "competencia": "7/2026",
+                        "motivo": "",
+                    }
+                ],
+                "vazio": "Nada.",
+            },
+        )
+        self.assertIn(
+            '<span class="m3-descricao-secundaria">Fulano de Tal</span>', html
+        )

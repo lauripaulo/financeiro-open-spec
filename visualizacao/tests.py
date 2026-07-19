@@ -9,6 +9,7 @@ from contas.models import Conta
 from lancamentos.models import Lancamento
 from meses.services import criar_mes, saldo_do_mes, transferir_pendente_para_mes
 from visualizacao.services import resumo_consolidado
+from visualizacao.templatetags.descricao import partes_descricao
 from visualizacao.templatetags.moeda import moeda
 from visualizacao.views import _filtros_mes
 
@@ -394,6 +395,135 @@ class VisaoConsolidadaTests(TestCase):
         )
         response = self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
         self.assertContains(response, "R$ 1.234,56")
+
+
+class PartesDescricaoFilterTests(TestCase):
+    def test_divide_no_primeiro_separador(self):
+        self.assertEqual(partes_descricao("A - B"), ["A", "B"])
+
+    def test_somente_primeiro_separador_divide(self):
+        self.assertEqual(partes_descricao("A - B - C"), ["A", "B - C"])
+
+    def test_sem_separador_retorna_parte_unica(self):
+        self.assertEqual(partes_descricao("A"), ["A"])
+
+
+class DescricaoEmpilhadaRenderTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Banco Descricao",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("0.00"),
+        )
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.url = reverse("visualizacao:consolidada")
+
+    def _lancar(self, descricao, detalhes=""):
+        return Lancamento.objects.create(
+            descricao=descricao,
+            detalhes=detalhes,
+            tipo=Lancamento.Tipo.GASTO_VARIAVEL,
+            data_vencimento=date(self.ano, self.mes, 10),
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+    def _get(self):
+        return self.client.get(self.url, {"ano": str(self.ano), "mes": str(self.mes)})
+
+    def test_descricao_com_separador_gera_linha_secundaria(self):
+        self._lancar("Pix enviado - Fulano de Tal")
+        response = self._get()
+        self.assertContains(
+            response, '<span class="m3-descricao-secundaria">Fulano de Tal</span>'
+        )
+
+    def test_descricao_sem_separador_nao_gera_linha_secundaria(self):
+        self._lancar("Aluguel")
+        response = self._get()
+        self.assertNotContains(response, "m3-descricao-secundaria")
+
+    def test_detalhes_expostos_no_title_da_celula(self):
+        memo = "Pix enviado - Fulano de Tal - 123.456.789-00 - BANCO XYZ"
+        self._lancar("Pix enviado - Fulano de Tal", detalhes=memo)
+        response = self._get()
+        self.assertContains(response, f'title="{memo}"')
+
+    def test_sem_detalhes_celula_nao_tem_title(self):
+        self._lancar("Pix enviado - Fulano de Tal")
+        response = self._get()
+        self.assertNotContains(response, 'class="m3-cell-descricao" title=')
+
+
+class PaginacaoMovimentacoesTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Banco Paginado",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("0.00"),
+        )
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.url = reverse("visualizacao:consolidada")
+
+    def _criar_lancamentos(self, quantidade, conta=None, data_pagamento=None):
+        conta = conta or self.conta
+        Lancamento.objects.bulk_create(
+            Lancamento(
+                descricao=f"Lancamento {i}",
+                tipo=Lancamento.Tipo.GASTO_VARIAVEL,
+                data_vencimento=date(self.ano, self.mes, 10),
+                data_pagamento=data_pagamento,
+                valor=Decimal("10.00"),
+                conta=conta,
+                competencia_ano=self.ano,
+                competencia_mes=self.mes,
+            )
+            for i in range(quantidade)
+        )
+
+    def _get(self, **params):
+        return self.client.get(
+            self.url, {"ano": str(self.ano), "mes": str(self.mes), **params}
+        )
+
+    def test_mes_com_51_lancamentos_divide_em_duas_paginas(self):
+        self._criar_lancamentos(51)
+        pagina1 = self._get()
+        pagina2 = self._get(pagina="2")
+        self.assertEqual(len(pagina1.context["lancamentos"]), 50)
+        self.assertEqual(len(pagina2.context["lancamentos"]), 1)
+
+    def test_totais_identicos_em_todas_as_paginas(self):
+        self._criar_lancamentos(51)
+        pagina1 = self._get()
+        pagina2 = self._get(pagina="2")
+        for chave in ("total_entradas", "total_saidas", "saldo_total"):
+            self.assertEqual(pagina1.context[chave], pagina2.context[chave], chave)
+        self.assertEqual(pagina1.context["total_saidas"], Decimal("510.00"))
+
+    def test_pagina_invalida_degrada_sem_erro(self):
+        self._criar_lancamentos(51)
+        nao_numerica = self._get(pagina="abc")
+        fora_do_alcance = self._get(pagina="999")
+        self.assertEqual(nao_numerica.context["pagina"].number, 1)
+        self.assertEqual(fora_do_alcance.context["pagina"].number, 2)
+
+    def test_links_de_paginacao_preservam_filtros(self):
+        self._criar_lancamentos(51, data_pagamento=date(self.ano, self.mes, 10))
+        response = self._get(conta=str(self.conta.pk), status="PAGO")
+        self.assertContains(response, f"&conta={self.conta.pk}")
+        self.assertContains(response, "&status=PAGO")
+        self.assertContains(response, "&pagina=2")
+
+    def test_controle_oculto_com_uma_unica_pagina(self):
+        self._criar_lancamentos(50)
+        response = self._get()
+        self.assertEqual(len(response.context["lancamentos"]), 50)
+        self.assertNotContains(response, "Pagina 1 de")
 
 
 class VisaoPatrimonioTests(TestCase):

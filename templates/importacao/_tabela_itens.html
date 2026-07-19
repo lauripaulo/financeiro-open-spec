@@ -1,3 +1,4 @@
+{% load descricao %}
 {% if itens %}
 <div class="m3-data-table-wrapper">
 <table class="m3-data-table">
@@ -12,7 +13,12 @@
     <tbody>
     {% for item in itens %}
     <tr>
-        <td>{{ item.descricao }}</td>
+        <td class="m3-cell-descricao">
+            {% with partes=item.descricao|partes_descricao %}
+                {{ partes.0 }}
+                {% if partes.1 %}<span class="m3-descricao-secundaria">{{ partes.1 }}</span>{% endif %}
+            {% endwith %}
+        </td>
         <td>R$ {{ item.valor }}</td>
         <td>{{ item.competencia }}</td>
         <td>{{ item.motivo|default:"-" }}</td>

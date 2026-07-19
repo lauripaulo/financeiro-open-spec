@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -77,6 +78,9 @@ def visao_consolidada(request):
 
     resumo = resumo_consolidado(ano, mes, conta_id=conta_id, status=status)
 
+    paginador = Paginator(resumo.lancamentos, 50)
+    pagina = paginador.get_page(request.GET.get("pagina"))
+
     (ano_ant, mes_ant), (ano_prox, mes_prox) = mes_anterior_posterior(ano, mes)
     aviso_limite = request.session.pop("aviso_limite_meses", None)
 
@@ -93,7 +97,8 @@ def visao_consolidada(request):
             "contas": Conta.objects.all().order_by("nome"),
             "conta_selecionada": conta_id,
             "conta_selecionada_obj": resumo.conta_selecionada,
-            "lancamentos": resumo.lancamentos,
+            "lancamentos": pagina,
+            "pagina": pagina,
             "status_ativos": status or [],
             "total_entradas": resumo.total_entradas,
             "total_saidas": resumo.total_saidas,

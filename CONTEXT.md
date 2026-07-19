@@ -7,6 +7,9 @@ implementacao.
   Investimento. Investimento fica fora das visoes consolidadas de Banco/Cartao.
 - **Lancamento** — registro financeiro de um mes de competencia, com tipo,
   direcao (entrada/saida) e status.
+- **Movimentacoes** — os lancamentos de um mes de competencia nas contas
+  Banco e Cartao, vistos em conjunto na visao consolidada; recorte sujeito
+  a filtros de conta e status.
 - **Status** — situacao calculada de um lancamento (Previsto, Pendente, Pago);
   nunca armazenada nem editada diretamente.
 - **Pagar** — marcar lancamento como pago com data explicita de pagamento;
