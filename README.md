@@ -1,30 +1,41 @@
 # financeiro-open-spec
 
-Repositorio de especificacao com OpenSpec para um sistema de controle financeiro pessoal.
+Sistema de controle financeiro pessoal em Django, desenvolvido com workflow spec-driven usando [OpenSpec](https://github.com/Fission-AI/OpenSpec).
 
-Este repo contem os artefatos OpenSpec e a implementacao inicial em Django.
+## Funcionalidades
 
-## Escopo 
+- **Contas**: cadastro de `Banco`, `Cartao` e `Investimento` (investimento tem saldo proprio, fora das visoes consolidadas)
+- **Lancamentos**: 9 tipos, direcao entrada/saida, status calculado automaticamente (`Previsto`, `Pendente`, `Pago`) — sem campo persistido nem cron
+- **Meses**: abertura manual e sequencial (primeiro mes = mes atual; cada proximo = imediatamente seguinte), com encadeamento de `saldo_inicial` por conta
+- **Recorrencia**: `RECEBIMENTO_FIXO`, `GASTO_FIXO` e `ASSINATURA` propagam na abertura de mes; edicao/exclusao cascateia para meses futuros
+- **Parcelas**: compras parceladas de cartao geram `PARCELA_CARTAO` exclusivamente pelo fluxo de compra parcelada (nunca pela abertura de mes, nunca em cascata de recorrencia)
+- **Transferencias**: pares de lancamentos vinculados (`lancamento_vinculado`) sincronizados entre contas
+- **Importacao OFX**: extrato de conta corrente e fatura de cartao Nubank, com deduplicacao por FITID
+- **Visoes**: por conta, consolidada (Banco + Cartao), patrimonio (Investimento) e comparativo
 
-- Cadastro de contas: `Cartao`, `Banco`, `Investimento`
-- Lancamentos com 9 tipos, direcao (entrada/saida) e propagacao por tipo
-- Status calculado automaticamente: `Previsto`, `Pendente`, `Pago`
-- Parcelas de cartao geradas exclusivamente pelo fluxo de compra parcelada
-- Criacao manual de mes com sequencia obrigatoria (primeiro mes = mes atual; cada proximo mes = imediatamente seguinte)
-- Propagacao de recorrentes fixos (`RECEBIMENTO_FIXO`, `GASTO_FIXO`, `ASSINATURA`) na abertura de mes
-- Cascata de edicao/exclusao para recorrentes em meses futuros (exceto `PARCELA_CARTAO`)
-- Visoes: por conta, consolidada (Banco + Cartao), patrimonio (Investimento) e comparativo
+## Stack
 
-## Stack alvo (planejada)
+- Python 3.12 + Django 5.2
+- SQLite
+- Django templates + HTMX, Material Design 3
+- Gunicorn + WhiteNoise (producao), Docker
 
-- Backend: Python + Django
-- Banco: SQLite
-- Frontend: Django templates + HTMX
-- Deploy: Docker
+## Estrutura
 
-## Como executar (rapido)
+| App | Responsabilidade |
+|---|---|
+| `contas` | Tipos de conta: `Banco`, `Cartao`, `Investimento` |
+| `lancamentos` | Lancamentos, tipos, status, cascata de recorrencia |
+| `parcelas` | Geracao de parcelas de compra no cartao |
+| `meses` | Ciclo de vida do mes: abertura sequencial, propagacao, saldo encadeado |
+| `visualizacao` | Visoes, relatorios e filtros de template |
+| `importacao` | Importacao de arquivos OFX (Nubank) |
 
-### Opcao 1: ambiente local
+Regra de arquitetura: logica de negocio vive em `services.py` de cada app — nunca em signals ou models gordos. Configuracao do projeto em `financeiro/`, templates em `templates/`, estaticos em `static/`.
+
+## Como executar
+
+### Ambiente local
 
 ```bash
 python3 -m venv .venv
@@ -35,7 +46,7 @@ python3 -m venv .venv
 
 Acesse: `http://127.0.0.1:8000/`
 
-### Opcao 2: Docker Compose
+### Docker (desenvolvimento)
 
 ```bash
 docker compose up --build
@@ -43,27 +54,58 @@ docker compose up --build
 
 Acesse: `http://127.0.0.1:8000/`
 
+### Docker (producao / NAS)
+
+```bash
+cp .env.example .env    # preencha DJANGO_SECRET_KEY e DJANGO_ALLOWED_HOSTS
+mkdir -p data           # banco SQLite persiste em ./data/db.sqlite3
+docker compose -f docker-compose.nas.yml up -d --build
+```
+
+Acesse: `http://<ip-do-servidor>:8231/`
+
+Variaveis de ambiente (ver `.env.example`):
+
+| Variavel | Obrigatoria | Descricao |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | sim | Gere com `python3 -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DJANGO_ALLOWED_HOSTS` | sim | IPs/hostnames de acesso, separados por virgula |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | se https ou porta custom | Origens com esquema, ex: `http://192.168.1.10:8231` |
+| `GUNICORN_WORKERS` | nao | Padrao: 2 |
+
+O container roda `migrate` e `collectstatic` automaticamente no boot.
+
 ### Testes
 
 ```bash
-.venv/bin/python manage.py test
+.venv/bin/python manage.py test                # todos
+.venv/bin/python manage.py test lancamentos   # um app
 ```
 
-## Comandos OpenSpec uteis
+## Workflow OpenSpec
+
+Propostas de mudanca e especificacoes vivem em `openspec/`:
+
+- `openspec/specs/` — especificacoes principais (fonte de verdade)
+- `openspec/changes/` — mudancas ativas
+- `openspec/changes/archive/` — mudancas concluidas
+
+Comandos uteis:
 
 ```bash
 openspec list --json
 openspec validate --changes
-openspec validate enforce-sequential-month-opening-and-parcela-source
 openspec list --archived
 ```
 
-## Atalhos de comando para sessoes OpenCode
+Skills/comandos para sessoes com agentes (Claude Code em `.claude/`, OpenCode em `.opencode/commands/`):
 
-Este repo inclui comandos em `.opencode/commands/`:
+- `/opsx-explore` — explorar ideias e requisitos
+- `/opsx-propose` — propor mudanca com artefatos completos
+- `/opsx-apply` — implementar tarefas de uma mudanca
+- `/opsx-sync` — sincronizar delta specs com specs principais
+- `/opsx-archive` — arquivar mudanca concluida
 
-- `/opsx-explore`
-- `/opsx-propose`
-- `/opsx-apply`
-- `/opsx-sync`
-- `/opsx-archive`
+## Licenca
+
+Ver [LICENSE](LICENSE).
