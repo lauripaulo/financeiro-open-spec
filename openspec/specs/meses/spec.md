@@ -184,4 +184,26 @@ o filtro ativo.
 - GIVEN um mes com lancamentos Pago, Pendente e Previsto
 - WHEN o usuario aplica um filtro para ocultar lancamentos Pendentes
 - THEN o sistema SHALL recalcular o saldo exibido considerando apenas os lancamentos
-  visiveis apos o filtro
+  
+### Requirement: Regra de saldo mensal com implementacao unica
+O sistema SHALL ter exatamente um corpo de implementacao da regra de saldo mensal de conta (saldo inicial registrado em `SaldoMensalConta`, com fallback em `conta.saldo_atual`, somado a entradas e subtraido de saidas do mes): a funcao batch `saldos_do_mes(contas, ano, mes, status_incluidos=None)` em `meses/services.py`, que retorna saldo inicial e final por conta com numero de consultas independente do numero de contas. `saldo_do_mes(...)` SHALL ser um wrapper fino sobre `saldos_do_mes`. `resumo_consolidado` SHALL obter os saldos por conta exclusivamente via `saldos_do_mes` — nenhum outro modulo SHALL re-implementar a regra. A funcao `_saldo_final_periodo` SHALL NOT existir; `criar_mes` SHALL usar `saldo_do_mes` para encadear o saldo inicial do mes seguinte.
+
+#### Scenario: Encadeamento de saldo na abertura de mes usa saldo_do_mes
+- **GIVEN** um mes aberto com saldo inicial e lancamentos em uma conta
+- **WHEN** o mes seguinte e criado via `criar_mes`
+- **THEN** o `saldo_inicial` da conta no novo mes SHALL ser igual a `saldo_do_mes(conta, ano_anterior, mes_anterior)`
+
+#### Scenario: Batch concorda com o wrapper escalar
+- **GIVEN** duas contas com lancamentos de entradas e saidas no mes
+- **WHEN** `saldos_do_mes([conta_a, conta_b], ano, mes)` e chamado
+- **THEN** o saldo final de cada conta SHALL ser igual a `saldo_do_mes(conta, ano, mes)` correspondente
+
+#### Scenario: Resumo consolidado concorda com saldo_do_mes para cada conta
+- **GIVEN** um mes com lancamentos de entradas e saidas em multiplas contas
+- **WHEN** `resumo_consolidado(ano, mes, conta_id=conta.pk)` e computado para CADA conta individualmente, com e sem filtro de status
+- **THEN** o `saldo_total` de cada resumo SHALL ser igual a `saldo_do_mes(conta, ano, mes, status_incluidos=status)` da conta correspondente
+
+#### Scenario: Nenhuma copia inline da regra sobrevive
+- **WHEN** o codigo de `visualizacao/services.py` e inspecionado
+- **THEN** a agregacao de saldo final por conta (fallback + entradas − saidas) SHALL ocorrer somente via chamada a `saldos_do_mes`
+

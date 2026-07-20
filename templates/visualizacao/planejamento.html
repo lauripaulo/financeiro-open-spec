@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load moeda %}
+
+{% block title %}Planejamento Financeiro{% endblock %}
+
+{% block content %}
+
+{% if resumo.sem_meses_abertos %}
+<section class="m3-card">
+    <h2>Planejamento Financeiro</h2>
+    <p>Nenhum mes esta aberto no sistema. Crie o primeiro mes para visualizar o planejamento financeiro.</p>
+    <a class="m3-button--filled" href="{% url 'visualizacao:consolidada' %}">Ir para visao consolidada</a>
+</section>
+{% else %}
+
+<section class="m3-card">
+    <div class="m3-toolbar m3-toolbar--filters">
+        <h2>Planejamento Financeiro</h2>
+        <form method="get" class="m3-form--inline m3-toolbar--filters">
+            <div class="m3-field m3-field--inline m3-field--md">
+                <label class="m3-field__label" for="data">Data de referencia</label>
+                <div class="m3-field__control">
+                    <input type="date" id="data" name="data" value="{{ data_ref_iso }}">
+                </div>
+            </div>
+            <button type="submit" class="m3-button--outlined">Atualizar</button>
+        </form>
+    </div>
+
+    {% if resumo.data_fora_mes_aberto %}
+    <div class="m3-banner m3-banner--warning">
+        O mes da data selecionada nao esta aberto. Exibindo dados do ultimo mes aberto
+        ({{ resumo.mes_ref_mes|stringformat:"02d" }}/{{ resumo.mes_ref_ano }}).
+    </div>
+    {% endif %}
+</section>
+
+{% if resumo.bancos %}
+<section class="m3-card">
+    <h2>Contas Bancarias</h2>
+    <p class="m3-body-sm">Saldo Real: apenas lancamentos pagos ate {{ data_ref|date:"d/m/Y" }}.
+    Saldo Projetado: inclui tambem lancamentos previstos/pendentes com vencimento ate {{ data_ref|date:"d/m/Y" }}.</p>
+    <div class="m3-data-table-wrapper">
+        <table class="m3-data-table">
+            <thead>
+                <tr>
+                    <th>Conta</th>
+                    <th class="m3-data-table__cell--numeric">Saldo Real</th>
+                    <th class="m3-data-table__cell--numeric">Saldo Projetado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in resumo.bancos %}
+                <tr>
+                    <td>{{ item.conta.nome }}</td>
+                    <td class="m3-data-table__cell--numeric {% if item.saldo_real < 0 %}m3-value--negative{% else %}m3-value--positive{% endif %}">
+                        {{ item.saldo_real|moeda }}
+                    </td>
+                    <td class="m3-data-table__cell--numeric {% if item.saldo_projetado < 0 %}m3-value--negative{% else %}m3-value--positive{% endif %}">
+                        {{ item.saldo_projetado|moeda }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total</th>
+                    <th class="m3-data-table__cell--numeric {% if resumo.total_real_banco < 0 %}m3-value--negative{% else %}m3-value--positive{% endif %}">
+                        {{ resumo.total_real_banco|moeda }}
+                    </th>
+                    <th class="m3-data-table__cell--numeric {% if resumo.total_projetado_banco < 0 %}m3-value--negative{% else %}m3-value--positive{% endif %}">
+                        {{ resumo.total_projetado_banco|moeda }}
+                    </th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if resumo.cartoes %}
+<section class="m3-card">
+    <h2>Cartoes de Credito</h2>
+    <p class="m3-body-sm">Total de gastos por fatura (pagos e previstos).</p>
+    <div class="m3-data-table-wrapper">
+        <table class="m3-data-table">
+            <thead>
+                <tr>
+                    <th>Cartao</th>
+                    {% for ano, mes in resumo.meses_cartao %}
+                    <th class="m3-data-table__cell--numeric">{{ mes|stringformat:"02d" }}/{{ ano }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in resumo.cartoes %}
+                <tr>
+                    <td>{{ item.conta.nome }}</td>
+                    {% for fatura in item.faturas %}
+                    <td class="m3-data-table__cell--numeric">
+                        {% if fatura.total %}
+                            {{ fatura.total|moeda }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if resumo.investimentos %}
+<section class="m3-card">
+    <h2>Investimentos</h2>
+    <div class="m3-stat-row">
+        <div class="m3-stat-card">
+            <p class="m3-stat-card__label">Total investido</p>
+            <p class="m3-stat-card__value">{{ resumo.total_investimentos|moeda }}</p>
+        </div>
+    </div>
+    <div class="m3-data-table-wrapper">
+        <table class="m3-data-table">
+            <thead>
+                <tr>
+                    <th>Conta</th>
+                    <th class="m3-data-table__cell--numeric">Saldo Real</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in resumo.investimentos %}
+                <tr>
+                    <td>{{ item.conta.nome }}</td>
+                    <td class="m3-data-table__cell--numeric m3-value--positive">{{ item.saldo|moeda }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total</th>
+                    <th class="m3-data-table__cell--numeric m3-value--positive">{{ resumo.total_investimentos|moeda }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}

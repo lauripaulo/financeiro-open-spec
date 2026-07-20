@@ -1,57 +1,71 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## How to Investigate
+1. Read highest-value sources: `README.md`, root manifests, workspace config, lockfiles.
+2. Check build/test/lint/typecheck/codegen configs and CI/pre-commit workflows.
+3. Review existing instructions: `AGENTS.md`, `CLAUDE.md`, `.opencode/`.
+4. Verify architecture by inspecting representative code (entrypoints, package boundaries).
+5. Trust executable sources over prose.
 
-This is a Django personal finance application backed by SQLite. The Django project configuration lives in `financeiro/`. Domain apps are split by responsibility: `contas/` for accounts, `lancamentos/` for financial entries, `parcelas/` for installment behavior, `meses/` for month lifecycle rules, and `visualizacao/` for reporting views and template filters. Shared HTML templates live in `templates/`, static browser assets in `static/`, and OpenSpec change/spec documents in `openspec/`. Keep migrations inside each app's `migrations/` directory.
+## Project Structure & Module Organization
+Django app with SQLite. Configuration in `financeiro/`.
+- `contas/`: `Banco`, `Cartao`, `Investimento`
+- `lancamentos/`: Entries, types, status, recurrence cascade
+- `parcelas/`: Installment generation
+- `meses/`: Month lifecycle (manual/sequential), balance chaining
+- `visualizacao/`: Reports, filters
+- `importacao/`: OFX Import (Nubank)
+- `templates/`, `static/`, `openspec/`
+- Logic resides in `services.py` for each app.
+
+## Workflow & Tools
+### OpenSpec (Source of Truth)
+- `openspec/specs/`: Main specifications
+- `openspec/changes/`: Active changes
+- `openspec/changes/archive/`: Completed changes
+- Commands: `openspec list --json`, `openspec validate --changes`, `openspec list --archived`
+
+### Agent Commands
+- `/opsx-explore`: Explore ideas/requirements
+- `/opsx-propose`: Propose changes with artifacts
+- `/opsx-apply`: Implement tasks
+- `/opsx-sync`: Sync delta specs
+- `/opsx-archive`: Archive changes
 
 ## Build, Test, and Development Commands
-
-Create and install a local environment:
-
+Local Environment:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-```
-
-Run database migrations and start the development server:
-
-```bash
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py runserver
 ```
 
-Run the app with Docker:
-
+Docker (Dev):
 ```bash
 docker compose up --build
 ```
 
-Run tests with Django's test runner:
-
-```bash
-.venv/bin/python manage.py test
-```
-
-Useful OpenSpec checks:
-
-```bash
-openspec list --json
-openspec validate --changes
-openspec list --archived
-```
+Tests:
+- All: `.venv/bin/python manage.py test`
+- App-specific: `.venv/bin/python manage.py test <app_name>`
 
 ## Coding Style & Naming Conventions
-
-Follow standard Django structure: models in `models.py`, forms in `forms.py`, view logic in `views.py`, URL routing in `urls.py`, and domain operations in `services.py` when behavior spans models or views. Use 4-space indentation, descriptive snake_case for functions and variables, and PascalCase for classes. Existing domain names are Portuguese; keep new user-facing labels and domain concepts consistent with terms like `Conta`, `Lancamento`, `Mes`, `Parcela`, `competencia_ano`, and `competencia_mes`.
+- Standard Django: `models.py`, `forms.py`, `views.py`, `urls.py`, `services.py` (for logic).
+- 4-space indentation, snake_case variables, PascalCase classes.
+- Portuguese domain names: `Conta`, `Lancamento`, `Mes`, `Parcela`, `competencia_ano`, `competencia_mes`.
 
 ## Testing Guidelines
-
-Tests use `django.test.TestCase` and live in each app's `tests.py`. Name test classes after the behavior under test, for example `ContaViewTests`, and methods with `test_...`. Add focused tests for model validation, service rules, and view responses whenever behavior changes. Prefer creating minimal records inline or with small helper functions already present in test modules.
+- Use `django.test.TestCase` in `tests.py`.
+- Name classes after behavior (e.g., `ContaViewTests`).
+- Add focused tests for model validation, service rules, and view responses.
+- Use inline records or existing helpers.
 
 ## Commit & Pull Request Guidelines
-
-Git history mostly uses short conventional-style commits such as `feat: ...`, `fix: ...`, and `chore: ...`; keep new commits imperative and scoped. Pull requests should describe the behavior change, mention related OpenSpec changes or issues, include test results from `manage.py test`, and attach screenshots for template or UI changes.
+- Conventional commits: `feat: ...`, `fix: ...`, `chore: ...`.
+- PRs must describe behavior, mention OpenSpec changes, include test results, and screenshots for UI.
 
 ## Security & Configuration Tips
-
-Do not commit real financial data or local database snapshots. Treat `db.sqlite3` and backup copies as local development artifacts. Keep production secrets out of `financeiro/settings.py`; the current settings are development-oriented with `DEBUG = True` and SQLite defaults.
+- No real financial data or local DB snapshots in commits.
+- Keep secrets out of `financeiro/settings.py`.
+- `db.sqlite3` is local artifact.

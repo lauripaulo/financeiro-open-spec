@@ -296,3 +296,120 @@ def pendentes_mes_anterior(ano, mes):
 
 def mes_anterior_posterior(ano, mes):
     return _mes_anterior(ano, mes), _mes_posterior(ano, mes)
+
+
+def _saldo_inicial_do_mes(conta: Conta, ano: int, mes: int) -> Decimal:
+    """Retorna o saldo inicial registrado em SaldoMensalConta para o mes,
+    com fallback para conta.saldo_atual se o registro nao existir."""
+    try:
+        smc = SaldoMensalConta.objects.get(conta=conta, ano=ano, mes=mes)
+        return smc.saldo_inicial
+    except SaldoMensalConta.DoesNotExist:
+        return conta.saldo_atual or Decimal("0.00")
+
+
+def _soma_movimentos(lancamentos) -> Decimal:
+    """Soma entradas e subtrai saidas para uma queryset de lancamentos."""
+    total = Decimal("0.00")
+    for lancamento in lancamentos:
+        if lancamento.direcao == "ENTRADA":
+            total += lancamento.valor_absoluto
+        else:
+            total -= lancamento.valor_absoluto
+    return total
+
+
+def _mes_referencia_seguro(data: date) -> tuple[int, int]:
+    """Retorna (ano, mes) da data se o mes estiver aberto,
+    senao retorna (ano, mes) do ultimo mes aberto."""
+    if MesAberto.objects.filter(ano=data.year, mes=data.month).exists():
+        return data.year, data.month
+    ultimo = MesAberto.objects.order_by("-ano", "-mes").first()
+    if ultimo is None:
+        return data.year, data.month
+    return ultimo.ano, ultimo.mes
+
+
+def saldo_real_em_data(conta: Conta, data: date) -> Decimal:
+    """Saldo real da conta na data especificada.
+
+    Ancora: SaldoMensalConta do mes da data (fallback conta.saldo_atual).
+    Soma apenas lancamentos PAGOS (data_pagamento IS NOT NULL e <= data)
+    restritos ao competencia_mes da data de referencia.
+    """
+    ano, mes = _mes_referencia_seguro(data)
+    inicial = _saldo_inicial_do_mes(conta, ano, mes)
+
+    pagos = Lancamento.objects.filter(
+        conta=conta,
+        competencia_ano=ano,
+        competencia_mes=mes,
+        data_pagamento__isnull=False,
+        data_pagamento__lte=data,
+    )
+    return inicial + _soma_movimentos(pagos)
+
+
+def saldo_projetado_em_data(conta: Conta, data: date) -> Decimal:
+    """Saldo projetado da conta na data especificada.
+
+    Ancora: mesma que saldo_real_em_data.
+    Soma lancamentos PAGOS ate data OU lancamentos com
+    data_vencimento <= data (pagos ou nao), restritos ao
+    competencia_mes da data de referencia.
+    """
+    ano, mes = _mes_referencia_seguro(data)
+    inicial = _saldo_inicial_do_mes(conta, ano, mes)
+
+    lancamentos = Lancamento.objects.filter(
+        conta=conta,
+        competencia_ano=ano,
+        competencia_mes=mes,
+    ).filter(
+        Q(data_pagamento__isnull=False, data_pagamento__lte=data)
+        | Q(data_pagamento__isnull=True, data_vencimento__lte=data)
+    )
+    return inicial + _soma_movimentos(lancamentos)
+
+
+def total_gastos_cartao_por_mes(contas_cartao):
+    """Total de saidas por mes para contas Cartao.
+
+    Retorna {(ano, mes): {conta_id: Decimal}} para o mes atual
+    e ate 3 meses futuros abertos (maximo 4 meses).
+    Inclui lancamentos de qualquer status (pagos, pendentes ou previstos).
+    """
+    hoje = date.today()
+
+    meses_abertos = list(
+        MesAberto.objects.filter(
+            Q(ano__gt=hoje.year)
+            | Q(ano=hoje.year, mes__gte=hoje.month)
+        )
+        .order_by("ano", "mes")
+        .values_list("ano", "mes")[:4]
+    )
+
+    if not meses_abertos:
+        return {}
+
+    contas_list = list(contas_cartao)
+    conta_ids = [c.pk for c in contas_list]
+
+    resultado: dict[tuple[int, int], dict[int, Decimal]] = {}
+    for ano, mes in meses_abertos:
+        resultado[(ano, mes)] = {c.pk: Decimal("0.00") for c in contas_list}
+
+    lancamentos = Lancamento.objects.filter(
+        conta_id__in=conta_ids,
+    ).filter(
+        Q(*[Q(competencia_ano=a, competencia_mes=m) for a, m in meses_abertos], _connector=Q.OR)
+    )
+
+    for lancamento in lancamentos:
+        chave = (lancamento.competencia_ano, lancamento.competencia_mes)
+        if chave in resultado and lancamento.conta_id in resultado[chave]:
+            if lancamento.direcao == "SAIDA":
+                resultado[chave][lancamento.conta_id] += lancamento.valor_absoluto
+
+    return resultado

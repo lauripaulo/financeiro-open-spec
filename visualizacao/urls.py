@@ -6,6 +6,7 @@ app_name = "visualizacao"
 
 urlpatterns = [
     path("", views.visao_consolidada, name="consolidada"),
+    path("planejamento/", views.visao_planejamento, name="planejamento"),
     path("patrimonio/", views.visao_patrimonio, name="patrimonio"),
     path("comparativo/", views.comparativo_meses, name="comparativo"),
     path("criar-mes/", views.criar_mes_view, name="criar_mes"),

@@ -172,44 +172,57 @@ O sistema SHALL exibir, para cada lancamento na tela principal do mes, seu Statu
 Excluir. A acao Excluir SHALL exigir confirmacao explicita do usuario antes de ser
 executada.
 
-#### Scenario: Acao de pagar um lancamento Previsto
-- GIVEN um lancamento com Status Previsto
-- WHEN o usuario aciona a acao "Pagar" e informa a data de pagamento
-- THEN o sistema SHALL alterar o Status para Pago
+### Requirement: Resumo consolidado (via service)
+O sistema SHALL expor em `visualizacao/services.py` uma funcao `resumo_consolidado(ano, mes, conta_id=None, status=None)` que computa, sem depender de HTTP, request ou sessao: a lista de lancamentos do mes das contas Banco e Cartao (respeitando filtros de conta e status), os totais de entradas e saidas, o saldo total, os saldos iniciais de cada conta, os alertas de limite negativo e a conta selecionada resolvida (`conta_selecionada`). O parametro `conta_id` SHALL ser `int` ou `None` — a interpretacao de parametros de request (conversao de string) e responsabilidade exclusiva da view. O resultado SHALL ser um value object imutavel consumido pela view.
 
-#### Scenario: Exclusao de lancamento exige confirmacao
-- GIVEN um lancamento listado na tela principal
-- WHEN o usuario aciona "Excluir"
-- THEN o sistema SHALL solicitar confirmacao explicita do usuario
-- AND SHALL somente excluir o lancamento apos a confirmacao
+#### Scenario: Resumo computado sem cliente HTTP
+- **GIVEN** um mes aberto com lancamentos em contas Banco e Cartao
+- **WHEN** um teste chama `resumo_consolidado(ano, mes)` diretamente
+- **THEN** o resultado SHALL conter lancamentos, totais de entradas/saidas, saldo total, saldos iniciais por conta, alertas de limite e `conta_selecionada`
+- **AND** nenhuma interacao HTTP SHALL ser necessaria
 
-### Requirement: Atualizacao da tela apos acoes que nao navegam
-O sistema SHALL atualizar a pagina atual e exibir uma mensagem de confirmacao ou
-erro quando uma acao do usuario (Pagar, Excluir, Transferir pendente, Manter
-pendente ou Ajustar saldo) for concluida sem levar o usuario a uma nova URL.
+#### Scenario: Filtro por conta restringe lista e totais
+- **GIVEN** um mes com lancamentos em duas contas
+- **WHEN** `resumo_consolidado(ano, mes, conta_id=X)` e chamado com `X` inteiro
+- **THEN** a lista de lancamentos e os totais de entradas/saidas SHALL refletir apenas a conta X
+- **AND** o saldo total SHALL ser o saldo da conta X
+- **AND** `conta_selecionada` SHALL ser a instancia de `Conta` correspondente
 
-#### Scenario: Tela e atualizada apos excluir um lancamento
-- GIVEN um lancamento listado na tela principal
-- WHEN o usuario confirma a exclusao desse lancamento
-- THEN o sistema SHALL atualizar a tela e remover o lancamento da lista exibida
-- AND SHALL exibir uma mensagem confirmando a exclusao
+#### Scenario: Filtro por status restringe lista, totais e saldos
+- **GIVEN** um mes com lancamentos pagos e previstos
+- **WHEN** `resumo_consolidado(ano, mes, status=["PAGO"])` e chamado
+- **THEN** a lista, os totais e os saldos SHALL considerar apenas lancamentos pagos
 
-#### Scenario: Tela e atualizada apos marcar um lancamento como pago
-- GIVEN um lancamento com Status Previsto ou Pendente
-- WHEN o usuario aciona "Pagar" e informa a data de pagamento
-- THEN o sistema SHALL atualizar a tela exibindo o lancamento com Status Pago
+#### Scenario: Contas Investimento ficam fora do resumo
+- **GIVEN** uma conta do tipo Investimento com lancamentos no mes
+- **WHEN** `resumo_consolidado(ano, mes)` e chamado
+- **THEN** os lancamentos, totais e saldos SHALL ignorar a conta Investimento
 
-#### Scenario: Tela e atualizada apos transferir ou manter um pendente
-- GIVEN um lancamento Pendente do mes anterior listado na abertura do novo mes
-- WHEN o usuario aciona "Transferir" ou "Manter"
-- THEN o sistema SHALL atualizar a tela refletindo a decisao tomada
-- AND SHALL exibir uma mensagem confirmando o resultado
+#### Scenario: Alertas de limite cobrem todas as contas Banco mesmo com filtro de conta
+- **GIVEN** duas contas Banco, uma delas com saldo alem do limite negativo
+- **WHEN** `resumo_consolidado(ano, mes, conta_id=<outra conta>)` e chamado
+- **THEN** o alerta de limite da conta ultrapassada SHALL estar presente no resultado
 
-### Requirement: Acoes primarias exibidas como botoes
-O sistema SHALL exibir links que representam uma acao primaria de criacao ou edicao
-(por exemplo "Novo lancamento", "Nova compra parcelada" e "Editar") com a mesma
-identidade visual dos botoes de formulario da aplicacao, e nao como links de texto
-simples.
+#### Scenario: Parse de parametros de request permanece na view
+- **GIVEN** uma requisicao GET com `?conta=<id>` como string
+- **WHEN** a view `visao_consolidada` processa a requisicao
+- **THEN** a view SHALL converter o parametro para `int` antes de invocar o service
+- **AND** o service SHALL NOT realizar conversao de strings de request
+
+### Requirement: Consolidacao em passada unica
+O calculo do resumo consolidado SHALL executar um numero constante de consultas, independente do numero de contas e lancamentos, e SHALL NOT recomputar o saldo de uma mesma conta mais de uma vez por invocacao. Os saldos iniciais e finais de todas as contas SHALL sair de uma unica chamada a `saldos_do_mes`.
+
+#### Scenario: Numero de consultas independe do numero de contas
+- **GIVEN** cinco contas Banco/Cartao com registros de `SaldoMensalConta` e lancamentos no mes
+- **WHEN** `resumo_consolidado(ano, mes)` e executado
+- **THEN** o numero de consultas SHALL ser o mesmo que com duas contas
+- **AND** SHALL ser pinado por teste (`assertNumQueries`)
+
+#### Scenario: Alertas reutilizam o saldo ja computado
+- **GIVEN** contas Banco com limite negativo configurado
+- **WHEN** `resumo_consolidado(ano, mes)` computa saldo total e alertas
+- **THEN** o saldo de cada conta SHALL ser computado uma unica vez e reutilizado para o total e para os alertas
+
 
 #### Scenario: Link de acao primaria exibido como botao
 - WHEN o usuario acessa a tela principal do mes

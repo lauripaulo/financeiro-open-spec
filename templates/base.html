@@ -21,6 +21,7 @@
     <h1 class="m3-top-app-bar__title">Controle Financeiro</h1>
     <nav class="m3-top-app-bar__nav">
         <a class="m3-nav-link" href="{% url 'visualizacao:consolidada' %}" {% if request.resolver_match.view_name == 'visualizacao:consolidada' %}aria-current="page"{% endif %}>Visao consolidada</a>
+        <a class="m3-nav-link" href="{% url 'visualizacao:planejamento' %}" {% if request.resolver_match.view_name == 'visualizacao:planejamento' %}aria-current="page"{% endif %}>Planejamento</a>
         <a class="m3-nav-link" href="{% url 'visualizacao:patrimonio' %}" {% if request.resolver_match.view_name == 'visualizacao:patrimonio' %}aria-current="page"{% endif %}>Patrimonio</a>
         <a class="m3-nav-link" href="{% url 'visualizacao:comparativo' %}" {% if request.resolver_match.view_name == 'visualizacao:comparativo' %}aria-current="page"{% endif %}>Comparativo</a>
         <a class="m3-nav-link" href="{% url 'contas:listar' %}" {% if request.resolver_match.view_name == 'contas:listar' %}aria-current="page"{% endif %}>Contas</a>
