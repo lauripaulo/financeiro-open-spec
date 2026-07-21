@@ -22,11 +22,16 @@
     <nav class="m3-top-app-bar__nav">
         <a class="m3-nav-link" href="{% url 'visualizacao:consolidada' %}" {% if request.resolver_match.view_name == 'visualizacao:consolidada' %}aria-current="page"{% endif %}>Visao consolidada</a>
         <a class="m3-nav-link" href="{% url 'visualizacao:planejamento' %}" {% if request.resolver_match.view_name == 'visualizacao:planejamento' %}aria-current="page"{% endif %}>Planejamento</a>
-        <a class="m3-nav-link" href="{% url 'visualizacao:patrimonio' %}" {% if request.resolver_match.view_name == 'visualizacao:patrimonio' %}aria-current="page"{% endif %}>Patrimonio</a>
+        <a class="m3-nav-link" href="{% url 'visualizacao:patrimonio' %}" {% if request.resolver_match.view_name == 'visualizacao:patrimonio' %}aria-current="current-page"{% endif %}>Patrimonio</a>
         <a class="m3-nav-link" href="{% url 'visualizacao:comparativo' %}" {% if request.resolver_match.view_name == 'visualizacao:comparativo' %}aria-current="page"{% endif %}>Comparativo</a>
         <a class="m3-nav-link" href="{% url 'contas:listar' %}" {% if request.resolver_match.view_name == 'contas:listar' %}aria-current="page"{% endif %}>Contas</a>
         <a class="m3-nav-link" href="{% url 'importacao:index' %}" {% if request.resolver_match.namespace == 'importacao' %}aria-current="page"{% endif %}>Importar</a>
     </nav>
+    <div class="m3-toolbar">
+        <button id="theme-toggle" class="m3-button--icon-only" aria-label="Toggle dark mode">
+            <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+        </button>
+    </div>
 </header>
 <main class="container">
     <div id="flash-area">
@@ -36,5 +41,26 @@
     </div>
     {% block content %}{% endblock %}
 </main>
+<script>
+(function() {
+    const html = document.documentElement;
+    const icon = document.getElementById('theme-icon');
+    const toggleBtn = document.getElementById('theme-toggle');
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    
+    function setTheme(theme) {
+        html.setAttribute('data-theme', theme);
+        icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+        localStorage.setItem('theme', theme);
+    }
+
+    setTheme(currentTheme);
+
+    toggleBtn.addEventListener('click', () => {
+        const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    });
+})();
+</script>
 </body>
 </html>
