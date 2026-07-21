@@ -87,14 +87,9 @@
 
   --md-sys-typescale-label-large-font: "Roboto", sans-serif;
   --md-sys-typescale-label-large-size: 0.875rem;
-  --md-sys-typescale-label-large-line-height: 1.25rem;
+  --md-sys-typescale-label-large-line-height: 1rem;
   --md-sys-typescale-label-large-weight: 500;
   --md-sys-typescale-label-large-tracking: 0.00625rem;
-
-  --md-sys-typescale-label-medium-font: "Roboto", sans-serif;
-  --md-sys-typescale-label-medium-size: 0.75rem;
-  --md-sys-typescale-label-medium-line-height: 1rem;
-  --md-sys-typescale-label-medium-weight: 500;
 
   /* Shape */
   --md-sys-shape-corner-none: 0;
@@ -107,7 +102,7 @@
 
   /* Elevation */
   --md-sys-elevation-0: none;
-  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 15, 0.15);
   --md-sys-elevation-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
   --md-sys-elevation-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
   --md-sys-elevation-4: 0 2px 3px rgba(0, 0, 0, 0.3), 0 6px 10px 4px rgba(0, 0, 0, 0.15);
@@ -117,4 +112,58 @@
   --md-sys-state-hover-opacity: 0.08;
   --md-sys-state-focus-opacity: 0.12;
   --md-sys-state-pressed-opacity: 0.12;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Primary (teal - dark) */
+  --md-sys-color-primary: hsl(175 70% 60%);
+  --md-sys-color-on-primary: hsl(175 70% 10%);
+  --md-sys-color-primary-container: hsl(175 70% 30%);
+  --md-sys-color-on-primary-container: hsl(175 70% 90%);
+
+  /* Secondary (muted teal-gray - dark) */
+  --md-sys-color-secondary: hsl(175 16% 70%);
+  --md-sys-color-on-secondary: hsl(175 16% 10%);
+  --md-sys-color-secondary-container: hsl(175 16% 30%);
+  --md-sys-color-on-secondary-container: hsl(175 16% 90%);
+
+  /* Tertiary (blue-violet - dark) */
+  --md-sys-color-tertiary: hsl(235 35% 70%);
+  --md-sys-color-on-tertiary: hsl(235 35% 10%);
+  --md-sys-color-tertiary-container: hsl(235 35% 30%);
+  --md-sys-color-on-tertiary-container: hsl(235 35% 90%);
+
+  /* Error (dark) */
+  --md-sys-color-error: hsl(4 74% 65%);
+  --md-sys-color-on-error: hsl(4 74% 10%);
+  --md-sys-color-error-container: hsl(4 74% 30%);
+  --md-sys-color-on-error-container: hsl(4 74% 90%);
+
+  /* Warning (dark) */
+  --md-sys-color-warning: hsl(32 80% 65%);
+  --md-sys-color-on-warning: hsl(32 80% 10%);
+  --md-sys-color-warning-container: hsl(32 80% 30%);
+  --md-sys-color-on-warning-container: hsl(32 80% 90%);
+
+  /* Success (dark) */
+  --md-sys-color-success: hsl(152 60% 60%);
+  --md-sys-color-on-success: hsl(152 60% 10%);
+  --md-sys-color-success-container: hsl(152 60% 30%);
+  --md-sys-color-on-success-container: hsl(152 60% 90%);
+
+  /* Neutral surfaces (dark) */
+  --md-sys-color-background: hsl(175 10% 6%);
+  --md-sys-color-on-background: hsl(175 10% 90%);
+  --md-sys-color-surface: hsl(175 10% 6%);
+  --md-sys-color-on-surface: hsl(175 10% 90%);
+  --md-sys-color-surface-variant: hsl(175 10% 15%);
+  --md-sys-color-on-surface-variant: hsl(175 10% 85%);
+  --md-sys-color-surface-container-low: hsl(175 10% 8%);
+  --md-sys-color-surface-container: hsl(175 10% 10%);
+  --md-sys-color-surface-container-high: hsl(175 10% 12%);
+  --md-sys-color-outline: hsl(175 10% 50%);
+  --md-sys-color-outline-variant: hsl(175 10% 30%);
+  --md-sys-color-scrim: hsl(0 0% 0%);
 }

@@ -25,6 +25,32 @@ from meses.services import (
 from visualizacao.services import resumo_consolidado
 
 
+@require_http_methods(["GET"])
+def visao_planejamento(request):
+    hoje = date.today()
+    data_str = request.GET.get("data")
+    if data_str:
+        try:
+            data_ref = date.fromisoformat(data_str)
+        except ValueError:
+            data_ref = hoje
+    else:
+        data_ref = hoje
+
+    from visualizacao.services import planejamento_financeiro
+
+    resumo = planejamento_financeiro(data_ref)
+    return render(
+        request,
+        "visualizacao/planejamento.html",
+        {
+            "resumo": resumo,
+            "data_ref": data_ref,
+            "data_ref_iso": data_ref.isoformat(),
+        },
+    )
+
+
 def _erro(request, mensagem):
     if request.headers.get("HX-Request"):
         messages.error(request, mensagem)

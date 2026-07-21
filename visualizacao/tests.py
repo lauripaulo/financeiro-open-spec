@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -799,3 +799,57 @@ class ResolverPendentesAberturaTests(TestCase):
         url = reverse("visualizacao:resolver_pendentes_abertura")
         response = self.client.get(url, {"ano": str(self.ano2), "mes": str(self.mes2)})
         self.assertEqual(response.status_code, 302)
+
+
+@override_settings(
+    MIDDLEWARE=[],
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+)
+class VisaoPlanejamentoTests(TestCase):
+    def setUp(self):
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.banco = Conta.objects.create(
+            nome="Banco Plaj",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("1000.00"),
+        )
+        self.cartao = Conta.objects.create(nome="Cartao Plaj", tipo=Conta.Tipo.CARTAO)
+        self.investimento = Conta.objects.create(
+            nome="Invest Plaj",
+            tipo=Conta.Tipo.INVESTIMENTO,
+            saldo_atual=Decimal("5000.00"),
+        )
+        self.url = reverse("visualizacao:planejamento")
+
+    def test_get_retorna_200(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_contexto_contem_resumo(self):
+        response = self.client.get(self.url)
+        self.assertIn("resumo", response.context)
+
+    def test_contexto_contem_bancos_cartoes_investimentos(self):
+        response = self.client.get(self.url)
+        resumo = response.context["resumo"]
+        self.assertEqual(len(resumo.bancos), 1)
+        self.assertEqual(resumo.bancos[0].conta, self.banco)
+        self.assertEqual(len(resumo.cartoes), 1)
+        self.assertEqual(len(resumo.investimentos), 1)
+
+    def test_data_ref_customizada(self):
+        hoje = date.today()
+        response = self.client.get(self.url, {"data": hoje.isoformat()})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["data_ref"], hoje)
+
+    def test_sem_meses_abertos_exibe_aviso(self):
+        from meses.models import MesAberto
+        MesAberto.objects.all().delete()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["resumo"].sem_meses_abertos)

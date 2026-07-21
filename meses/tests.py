@@ -14,8 +14,11 @@ from meses.services import (
     elegivel_para_transferencia,
     excluir_serie_futura,
     saldo_do_mes,
+    saldo_projetado_em_data,
+    saldo_real_em_data,
     saldos_do_mes,
     atualizar_serie_futura,
+    total_gastos_cartao_por_mes,
     transferir_pendente_para_mes,
 )
 
@@ -390,3 +393,162 @@ class MesesServicesTests(TestCase):
         mes_aberto, criados, _, _ = criar_mes(ano, mes)
         self.assertEqual(str(mes_aberto), f"{mes:02d}/{ano}")
         self.assertEqual(len(criados), 0)
+
+
+class SaldoRealEmDataTests(TestCase):
+    def setUp(self):
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.conta = Conta.objects.create(
+            nome="Banco Teste",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("1000.00"),
+        )
+        SaldoMensalConta.objects.filter(conta=self.conta, ano=self.ano, mes=self.mes).update(
+            saldo_inicial=Decimal("1000.00")
+        )
+        self.hoje = date(self.ano, self.mes, 15)
+
+    def _lancar(self, tipo, valor, data_pagamento=None, dia_vencimento=10):
+        return Lancamento.objects.create(
+            descricao=f"L {tipo}",
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, dia_vencimento),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=self.conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+    def test_sem_lancamentos_retorna_saldo_inicial(self):
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1000.00"))
+
+    def test_inclui_apenas_pagos_ate_data(self):
+        self._lancar(Lancamento.Tipo.RECEBIMENTO_EXCEPCIONAL, Decimal("500.00"), data_pagamento=self.hoje)
+        self._lancar(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("200.00"))  # sem data_pagamento
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1500.00"))
+
+    def test_exclui_pagos_apos_data(self):
+        amanha = self.hoje + timedelta(days=1)
+        self._lancar(Lancamento.Tipo.RECEBIMENTO_EXCEPCIONAL, Decimal("500.00"), data_pagamento=amanha)
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1000.00"))
+
+    def test_fallback_sem_saldo_mensal_conta(self):
+        SaldoMensalConta.objects.filter(conta=self.conta).delete()
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1000.00"))
+
+    def test_entrada_aumenta_saldo(self):
+        self._lancar(Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("3000.00"), data_pagamento=self.hoje)
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("4000.00"))
+
+    def test_saida_diminui_saldo(self):
+        self._lancar(Lancamento.Tipo.GASTO_FIXO, Decimal("300.00"), data_pagamento=self.hoje)
+        resultado = saldo_real_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("700.00"))
+
+
+class SaldoProjetadoEmDataTests(TestCase):
+    def setUp(self):
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.conta = Conta.objects.create(
+            nome="Banco Projetado",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("1000.00"),
+        )
+        SaldoMensalConta.objects.filter(conta=self.conta, ano=self.ano, mes=self.mes).update(
+            saldo_inicial=Decimal("1000.00")
+        )
+        self.hoje = date(self.ano, self.mes, 15)
+
+    def _lancar(self, tipo, valor, data_pagamento=None, dia_vencimento=10):
+        return Lancamento.objects.create(
+            descricao=f"L {tipo}",
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, dia_vencimento),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=self.conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+
+    def test_inclui_pagos_e_previstos_ate_data(self):
+        self._lancar(Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("3000.00"), data_pagamento=self.hoje)
+        self._lancar(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("500.00"), dia_vencimento=15)
+        resultado = saldo_projetado_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("3500.00"))
+
+    def test_exclui_previstos_apos_data(self):
+        self._lancar(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("500.00"), dia_vencimento=20)
+        resultado = saldo_projetado_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1000.00"))
+
+    def test_projetado_com_saida_menor_que_real(self):
+        self._lancar(Lancamento.Tipo.RECEBIMENTO_FIXO, Decimal("3000.00"),
+                     data_pagamento=self.hoje - timedelta(days=1))
+        self._lancar(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("100.00"), dia_vencimento=15)
+        real = saldo_real_em_data(self.conta, self.hoje)
+        projetado = saldo_projetado_em_data(self.conta, self.hoje)
+        self.assertLessEqual(projetado, real)
+
+    def test_sem_lancamentos_retorna_saldo_inicial(self):
+        resultado = saldo_projetado_em_data(self.conta, self.hoje)
+        self.assertEqual(resultado, Decimal("1000.00"))
+
+
+class TotalGastosCartaoPorMesTests(TestCase):
+    def setUp(self):
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+        self.cartao = Conta.objects.create(nome="Visa Teste", tipo=Conta.Tipo.CARTAO)
+
+    def _lancar_cartao(self, tipo, valor, ano=None, mes=None, data_pagamento=None):
+        a = ano or self.ano
+        m = mes or self.mes
+        return Lancamento.objects.create(
+            descricao=f"Compra {valor}",
+            tipo=tipo,
+            data_vencimento=date(a, m, 10),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=self.cartao,
+            competencia_ano=a,
+            competencia_mes=m,
+        )
+
+    def test_mes_atual_soma_saidas(self):
+        self._lancar_cartao(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("100.00"))
+        self._lancar_cartao(Lancamento.Tipo.ASSINATURA, Decimal("50.00"))
+        resultado = total_gastos_cartao_por_mes([self.cartao])
+        chave = (self.ano, self.mes)
+        self.assertIn(chave, resultado)
+        self.assertEqual(resultado[chave][self.cartao.pk], Decimal("150.00"))
+
+    def test_inclui_pagos_e_nao_pagos(self):
+        self._lancar_cartao(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("200.00"),
+                            data_pagamento=date(self.ano, self.mes, 5))
+        self._lancar_cartao(Lancamento.Tipo.GASTO_VARIAVEL, Decimal("300.00"))
+        resultado = total_gastos_cartao_por_mes([self.cartao])
+        chave = (self.ano, self.mes)
+        self.assertEqual(resultado[chave][self.cartao.pk], Decimal("500.00"))
+
+    def test_maximo_quatro_meses(self):
+        a, m = _mes_seguinte(self.ano, self.mes)
+        for _ in range(5):
+            criar_mes(a, m)
+            a, m = _mes_seguinte(a, m)
+        resultado = total_gastos_cartao_por_mes([self.cartao])
+        self.assertLessEqual(len(resultado), 4)
+
+    def test_sem_meses_abertos_retorna_vazio(self):
+        from meses.models import MesAberto
+        MesAberto.objects.all().delete()
+        resultado = total_gastos_cartao_por_mes([self.cartao])
+        self.assertEqual(resultado, {})
