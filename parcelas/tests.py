@@ -252,3 +252,48 @@ class CriarParcelaImportadaTests(TestCase):
         )
 
         self.assertEqual(parcela.data_vencimento, date(2026, 2, 28))
+
+
+class CompraParceladaModelTests(TestCase):
+    def setUp(self):
+        self.cartao = Conta.objects.create(
+            nome="Cartao Modelo", tipo=Conta.Tipo.CARTAO, dia_vencimento=10
+        )
+        self.compra = CompraParcelada(
+            descricao="TV",
+            conta=self.cartao,
+            valor_total=Decimal("1200.00"),
+            total_parcelas=10,
+            data_compra=date(2026, 1, 15),
+        )
+
+    def test_str(self):
+        self.assertEqual(str(self.compra), "TV (10x)")
+
+    def test_valor_parcela(self):
+        self.assertEqual(self.compra.valor_parcela, Decimal("120.00"))
+
+    def test_clean_rejeita_conta_nao_cartao(self):
+        banco = Conta.objects.create(nome="Banco", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        compra = CompraParcelada(
+            descricao="Erro",
+            conta=banco,
+            valor_total=Decimal("100.00"),
+            total_parcelas=3,
+            data_compra=date(2026, 1, 15),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            compra.full_clean()
+        self.assertIn("conta", ctx.exception.message_dict)
+
+    def test_clean_rejeita_total_parcelas_menor_que_dois(self):
+        compra = CompraParcelada(
+            descricao="Erro",
+            conta=self.cartao,
+            valor_total=Decimal("100.00"),
+            total_parcelas=1,
+            data_compra=date(2026, 1, 15),
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            compra.full_clean()
+        self.assertIn("total_parcelas", ctx.exception.message_dict)

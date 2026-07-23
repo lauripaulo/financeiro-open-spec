@@ -16,7 +16,7 @@
             {% include "_partials/field.html" with field=form.saldo_atual cond="tipo=BANCO|INVESTIMENTO" %}
             {% include "_partials/field.html" with field=form.limite_negativo cond="tipo=BANCO" %}
         </div>
-        <button type="submit" class="m3-button--filled">Salvar</button>
+        {% include "_partials/form_actions.html" with primary_label="Salvar" secondary_label="Cancelar" secondary_url=cancel_url %}
     </form>
 </section>
 </div>

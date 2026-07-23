@@ -7,21 +7,13 @@
 <section class="m3-card">
     <h2>Comparativo entre meses</h2>
     <form method="get" class="m3-toolbar m3-toolbar--filters">
-        <div class="m3-field m3-field--inline">
-            <label class="m3-field__label">Mes A</label>
-            <div class="m3-field__control"><input type="number" name="mes_a" value="{{ mes_a }}" min="1" max="12"></div>
+        <div class="m3-field m3-field--inline m3-field--md">
+            <label class="m3-field__label">Competencia A</label>
+            <div class="m3-field__control"><input type="month" name="competencia_a" value="{{ competencia_a }}"></div>
         </div>
-        <div class="m3-field m3-field--inline">
-            <label class="m3-field__label">Ano A</label>
-            <div class="m3-field__control"><input type="number" name="ano_a" value="{{ ano_a }}" min="2000" max="2200"></div>
-        </div>
-        <div class="m3-field m3-field--inline">
-            <label class="m3-field__label">Mes B</label>
-            <div class="m3-field__control"><input type="number" name="mes_b" value="{{ mes_b }}" min="1" max="12"></div>
-        </div>
-        <div class="m3-field m3-field--inline">
-            <label class="m3-field__label">Ano B</label>
-            <div class="m3-field__control"><input type="number" name="ano_b" value="{{ ano_b }}" min="2000" max="2200"></div>
+        <div class="m3-field m3-field--inline m3-field--md">
+            <label class="m3-field__label">Competencia B</label>
+            <div class="m3-field__control"><input type="month" name="competencia_b" value="{{ competencia_b }}"></div>
         </div>
         <button type="submit" class="m3-button--filled">Comparar</button>
     </form>

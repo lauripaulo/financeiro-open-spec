@@ -1105,7 +1105,17 @@ class MigracaoEncurtarDescricoesTests(TestCase):
         self.assertEqual(self.lanc.detalhes, "")
         self.assertNotEqual(self.lanc.descricao, descricao_curta)
 
-    def test_backfill_ignora_descricao_curta_e_cartao(self):
+    def test_backfill_trunca_descricao_muito_longa(self):
+        modulo = self._modulo()
+        memo = "X" + " - " + "Y" * 200 + " - RESTANTE"
+        # Bypass model validation to simulate legacy data > 180 chars.
+        Lancamento.objects.filter(pk=self.lanc.pk).update(descricao=memo)
+        modulo.encurtar_descricoes(self.apps, None)
+
+        self.lanc.refresh_from_db()
+        self.assertEqual(len(self.lanc.descricao), 180)
+        self.assertTrue(self.lanc.descricao.endswith("…"))
+        self.assertEqual(self.lanc.detalhes, memo)
         modulo = self._modulo()
         cartao = Conta.objects.create(nome="Cartao M", tipo=Conta.Tipo.CARTAO, dia_vencimento=8)
         lanc_cartao = Lancamento.objects.create(

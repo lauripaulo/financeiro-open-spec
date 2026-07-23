@@ -14,13 +14,9 @@
             Mes seguinte <span class="m3-icon" aria-hidden="true">chevron_right</span>
         </a>
         <form method="get" class="m3-form--inline m3-toolbar--filters">
-            <div class="m3-field m3-field--inline m3-field--sm">
-                <label class="m3-field__label">Ano</label>
-                <div class="m3-field__control"><input type="number" name="ano" value="{{ ano }}" min="2000" max="2200"></div>
-            </div>
-            <div class="m3-field m3-field--inline m3-field--xs">
-                <label class="m3-field__label">Mes</label>
-                <div class="m3-field__control"><input type="number" name="mes" value="{{ mes }}" min="1" max="12"></div>
+            <div class="m3-field m3-field--inline m3-field--md">
+                <label class="m3-field__label">Competencia</label>
+                <div class="m3-field__control"><input type="month" name="competencia" value="{{ competencia }}"></div>
             </div>
             <div class="m3-field m3-field--inline m3-field--md">
                 <label class="m3-field__label">Conta</label>
@@ -80,13 +76,13 @@
 <section class="m3-card">
     <h3>Movimentacoes</h3>
     <div class="m3-toolbar">
-        <a class="m3-button--filled" href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}">
+        <a class="m3-button--filled" href="{% url 'lancamentos:criar' %}?ano={{ ano }}&mes={{ mes }}&return_url={{ current_url|urlencode }}">
             <span class="m3-icon" aria-hidden="true">add</span> Novo lancamento
         </a>
-        <a class="m3-button--outlined" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}">
+        <a class="m3-button--outlined" href="{% url 'lancamentos:compra_parcelada' %}?ano={{ ano }}&mes={{ mes }}&return_url={{ current_url|urlencode }}">
             <span class="m3-icon" aria-hidden="true">add</span> Nova compra parcelada
         </a>
-        <a class="m3-button--outlined" href="{% url 'lancamentos:transferencia' %}?ano={{ ano }}&mes={{ mes }}">
+        <a class="m3-button--outlined" href="{% url 'lancamentos:transferencia' %}?ano={{ ano }}&mes={{ mes }}&return_url={{ current_url|urlencode }}">
             <span class="m3-icon" aria-hidden="true">sync_alt</span> Nova transferencia
         </a>
     </div>
@@ -144,7 +140,7 @@
                         </form>
                     </details>
                     {% endif %}
-                    <a class="m3-button--outlined m3-button--icon-only" href="{% url 'lancamentos:editar' item.id %}" aria-label="Editar" title="Editar">
+                    <a class="m3-button--outlined m3-button--icon-only" href="{% url 'lancamentos:editar' item.id %}?return_url={{ current_url|urlencode }}" aria-label="Editar" title="Editar">
                         <span class="m3-icon" aria-hidden="true">edit</span>
                     </a>
                     <form method="post" action="{% url 'lancamentos:excluir' item.id %}" hx-post="{% url 'lancamentos:excluir' item.id %}" hx-target="#flash-area" hx-swap="innerHTML" hx-confirm="Tem certeza que deseja excluir este lancamento?" class="m3-inline-form">

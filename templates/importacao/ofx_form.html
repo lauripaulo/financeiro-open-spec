@@ -15,7 +15,7 @@
             {% include "_partials/field.html" with field=form.conta span="full" %}
             {% include "_partials/field.html" with field=form.modo span="full" %}
         </div>
-        <button type="submit" class="m3-button--filled">Importar</button>
+        {% include "_partials/form_actions.html" with primary_label="Importar" secondary_label="Voltar" secondary_url=voltar_url %}
     </form>
 </section>
 </div>

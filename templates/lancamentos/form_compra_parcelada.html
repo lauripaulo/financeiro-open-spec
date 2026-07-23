@@ -17,7 +17,7 @@
             {% include "_partials/field.html" with field=form.total_parcelas %}
             {% include "_partials/field.html" with field=form.parcelas_pagas %}
         </div>
-        <button type="submit" class="m3-button--filled">Gerar parcelas</button>
+        {% include "_partials/form_actions.html" with primary_label="Gerar parcelas" secondary_label="Cancelar" secondary_url=return_url %}
     </form>
 </section>
 </div>

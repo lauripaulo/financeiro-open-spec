@@ -3,17 +3,23 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from contas.models import Conta
 from lancamentos.models import Lancamento
-from meses.models import SaldoMensalConta
+from meses.models import MesAberto, SaldoMensalConta
 from meses.services import (
+    _mes_anterior,
+    _mes_posterior,
+    _saldo_inicial_do_mes,
+    _mes_referencia_seguro,
     ajustar_saldo_inicial,
     criar_mes,
     elegivel_para_transferencia,
     excluir_serie_futura,
     saldo_do_mes,
+    saldo_investimento,
     saldo_projetado_em_data,
     saldo_real_em_data,
     saldos_do_mes,
@@ -313,11 +319,10 @@ class MesesServicesTests(TestCase):
     def test_primeiro_mes_deve_ser_o_atual(self):
         """Task 5.1: O primeiro mes aberto deve ser o mes atual."""
         hoje = date.today()
-        # Escolher um mes diferente do atual
-        ano_outro = hoje.year
-        mes_outro = hoje.month - 1 if hoje.month > 1 else 12
-        if mes_outro == 12 and hoje.month == 1:
-            ano_outro -= 1
+        # Escolher um mes diferente do atual (sem branch condicional)
+        mes_decimal = hoje.year * 12 + hoje.month - 1
+        ano_outro, mes_outro = divmod(mes_decimal - 1, 12)
+        mes_outro += 1
 
         with self.assertRaises(ValidationError) as ctx:
             criar_mes(ano_outro, mes_outro)
@@ -393,6 +398,201 @@ class MesesServicesTests(TestCase):
         mes_aberto, criados, _, _ = criar_mes(ano, mes)
         self.assertEqual(str(mes_aberto), f"{mes:02d}/{ano}")
         self.assertEqual(len(criados), 0)
+
+    def test_atualizar_serie_nao_recorrente(self):
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
+        lanc = Lancamento.objects.create(
+            descricao="Pontual",
+            tipo=Lancamento.Tipo.GASTO_VARIAVEL,
+            data_vencimento=timezone.localdate(),
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=ano,
+            competencia_mes=mes,
+        )
+        atualizar_serie_futura(lanc, valor=Decimal("20.00"))
+        lanc.refresh_from_db()
+        self.assertEqual(lanc.valor, Decimal("20.00"))
+
+    def test_excluir_serie_nao_recorrente(self):
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
+        lanc = Lancamento.objects.create(
+            descricao="Pontual",
+            tipo=Lancamento.Tipo.GASTO_VARIAVEL,
+            data_vencimento=timezone.localdate(),
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=ano,
+            competencia_mes=mes,
+        )
+        pk = lanc.pk
+        excluir_serie_futura(lanc)
+        self.assertFalse(Lancamento.objects.filter(pk=pk).exists())
+
+    def test_ajustar_saldo_sem_mudanca(self):
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
+        registro, conciliacao = ajustar_saldo_inicial(self.conta, ano, mes, Decimal("1000.00"))
+        self.assertIsNone(conciliacao)
+
+    def test_saldo_investimento_conta_nao_investimento(self):
+        from meses.services import saldo_investimento
+        self.assertEqual(saldo_investimento(self.conta), Decimal("0.00"))
+
+
+    def test_atualizar_serie_nao_propaga_para_meses_anteriores(self):
+        """Se edita uma ocorrencia futura, meses anteriores ao editado nao mudam."""
+        raiz = Lancamento.objects.create(
+            descricao="Internet",
+            tipo=Lancamento.Tipo.ASSINATURA,
+            data_vencimento=date(2026, 4, 10),
+            valor=Decimal("80.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        anterior = Lancamento.objects.create(
+            descricao="Internet",
+            tipo=Lancamento.Tipo.ASSINATURA,
+            data_vencimento=date(2026, 5, 10),
+            valor=Decimal("80.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=5,
+            grupo_recorrencia=raiz,
+            gerado_automaticamente=True,
+        )
+        futuro = Lancamento.objects.create(
+            descricao="Internet",
+            tipo=Lancamento.Tipo.ASSINATURA,
+            data_vencimento=date(2026, 6, 10),
+            valor=Decimal("80.00"),
+            conta=self.conta,
+            competencia_ano=2026,
+            competencia_mes=6,
+            grupo_recorrencia=raiz,
+            gerado_automaticamente=True,
+        )
+
+        atualizar_serie_futura(futuro, valor=Decimal("100.00"))
+        anterior.refresh_from_db()
+        futuro.refresh_from_db()
+        self.assertEqual(anterior.valor, Decimal("80.00"))
+        self.assertEqual(futuro.valor, Decimal("100.00"))
+
+    def test_saldo_investimento_ate_competencia(self):
+        invest = Conta.objects.create(
+            nome="Invest SI", tipo=Conta.Tipo.INVESTIMENTO, saldo_atual=Decimal("1000.00")
+        )
+        Lancamento.objects.create(
+            descricao="Aporte passado",
+            tipo=Lancamento.Tipo.APORTE,
+            data_vencimento=date(2026, 4, 10),
+            valor=Decimal("200.00"),
+            conta=invest,
+            competencia_ano=2026,
+            competencia_mes=4,
+        )
+        Lancamento.objects.create(
+            descricao="Aporte futuro",
+            tipo=Lancamento.Tipo.APORTE,
+            data_vencimento=date(2026, 6, 10),
+            valor=Decimal("300.00"),
+            conta=invest,
+            competencia_ano=2026,
+            competencia_mes=6,
+        )
+        self.assertEqual(saldo_investimento(invest, ate_ano=2026, ate_mes=5), Decimal("1200.00"))
+
+
+class MesModelsTests(TestCase):
+    def test_mes_aberto_str(self):
+        mes = MesAberto(ano=2025, mes=3)
+        self.assertEqual(str(mes), "03/2025")
+
+    def test_mes_aberto_mes_invalido(self):
+        mes = MesAberto(ano=2025, mes=13)
+        with self.assertRaises(ValidationError) as ctx:
+            mes.full_clean()
+        self.assertIn("mes", ctx.exception.message_dict)
+
+    def test_saldo_mensal_conta_str(self):
+        conta = Conta.objects.create(nome="Banco", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        smc = SaldoMensalConta(conta=conta, ano=2025, mes=3)
+        self.assertEqual(str(smc), f"{conta} - 03/2025")
+
+    def test_saldo_mensal_conta_mes_invalido(self):
+        conta = Conta.objects.create(nome="Banco", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        smc = SaldoMensalConta(conta=conta, ano=2025, mes=13)
+        with self.assertRaises(ValidationError) as ctx:
+            smc.full_clean()
+        self.assertIn("mes", ctx.exception.message_dict)
+
+    def test_data_mes_segura_ultimo_dia(self):
+        from meses.services import _data_mes_segura
+        self.assertEqual(_data_mes_segura(2025, 2, 31), date(2025, 2, 28))
+
+    def test_mes_anterior_ano_novo(self):
+        self.assertEqual(_mes_anterior(2026, 1), (2025, 12))
+
+    def test_mes_posterior_dezembro(self):
+        self.assertEqual(_mes_posterior(2026, 12), (2027, 1))
+
+    def test_saldo_inicial_do_mes_com_registro(self):
+        conta = Conta.objects.create(nome="Banco SMC", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        ano, mes = _mes_atual()
+        criar_mes(ano, mes)
+        registro = SaldoMensalConta.objects.get(conta=conta, ano=ano, mes=mes)
+        registro.saldo_inicial = Decimal("1234.00")
+        registro.save()
+        self.assertEqual(_saldo_inicial_do_mes(conta, ano, mes), Decimal("1234.00"))
+
+    def test_mes_referencia_seguro_sem_meses_abertos(self):
+        MesAberto.objects.all().delete()
+        d = date(2026, 3, 15)
+        self.assertEqual(_mes_referencia_seguro(d), (2026, 3))
+
+
+class MesesViewsTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Banco MV", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00")
+        )
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+
+    def test_criar_mes_view_com_aviso_limite_meses(self):
+        from unittest.mock import patch
+        url = reverse("visualizacao:criar_mes")
+        with patch("visualizacao.views._carregar_mes", return_value=(None, Lancamento.objects.none(), True)):
+            response = self.client.post(url, {"ano": str(self.ano), "mes": str(self.mes)})
+        self.assertEqual(response.status_code, 302)
+
+    def test_criar_mes_view_com_pendentes(self):
+        hoje = date.today()
+        Lancamento.objects.create(
+            descricao="Atrasada",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=hoje - timedelta(days=3),
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+        ano2, mes2 = _mes_seguinte(self.ano, self.mes)
+        url = reverse("visualizacao:criar_mes")
+        response = self.client.post(url, {"ano": str(ano2), "mes": str(mes2)})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("visualizacao:resolver_pendentes_abertura"), response.url)
+
+    def test_resolver_pendentes_redireciona_quando_vazio(self):
+        ano2, mes2 = _mes_seguinte(self.ano, self.mes)
+        criar_mes(ano2, mes2)
+        url = reverse("visualizacao:resolver_pendentes_abertura")
+        response = self.client.get(url, {"ano": str(ano2), "mes": str(mes2)})
+        self.assertEqual(response.status_code, 302)
 
 
 class SaldoRealEmDataTests(TestCase):
