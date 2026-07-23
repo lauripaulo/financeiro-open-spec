@@ -16,7 +16,7 @@
             {% include "_partials/field.html" with field=form.valor %}
             {% include "_partials/field.html" with field=form.data_vencimento %}
         </div>
-        <button type="submit" class="m3-button--filled">Transferir</button>
+        {% include "_partials/form_actions.html" with primary_label="Transferir" secondary_label="Cancelar" secondary_url=return_url %}
     </form>
 </section>
 </div>

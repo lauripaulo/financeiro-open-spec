@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from importacao.forms import ImportacaoOFXNubankCartaoForm, ImportacaoOFXNubankContaForm
@@ -35,7 +36,7 @@ def _processar_importacao(request, *, form_class, servico, titulo, ajuda):
     return render(
         request,
         "importacao/ofx_form.html",
-        {"form": form, "titulo": titulo, "ajuda": ajuda},
+        {"form": form, "titulo": titulo, "ajuda": ajuda, "voltar_url": reverse("importacao:index")},
     )
 
 

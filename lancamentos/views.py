@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 
 from lancamentos.forms import CompraParceladaForm, LancamentoForm, MarcarPagoForm, TransferenciaForm
 from lancamentos.models import Lancamento
+from lancamentos.utils import safe_return_url
 from meses.services import excluir_serie_futura, atualizar_serie_futura
 
 
@@ -25,9 +26,16 @@ def _contexto_mes(request):
     return ano, mes
 
 
+def _return_url(request, ano, mes):
+    """Build safe return URL from GET params, falling back to consolidada."""
+    url = request.GET.get("return_url", "")
+    return safe_return_url(url, fallback=f"/?ano={ano}&mes={mes}")
+
+
 @require_http_methods(["GET", "POST"])
 def criar_lancamento(request):
     ano, mes = _contexto_mes(request)
+    return_url = _return_url(request, ano, mes)
 
     if request.method == "POST":
         form = LancamentoForm(request.POST, instance=Lancamento(competencia_ano=ano, competencia_mes=mes))
@@ -35,11 +43,11 @@ def criar_lancamento(request):
             form.save()
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204)
-            return redirect(f"/?ano={ano}&mes={mes}")
+            return redirect(return_url)
     else:
         form = LancamentoForm()
 
-    return render(request, "lancamentos/form.html", {"form": form, "ano": ano, "mes": mes})
+    return render(request, "lancamentos/form.html", {"form": form, "ano": ano, "mes": mes, "return_url": return_url})
 
 
 @require_http_methods(["POST"])
@@ -91,6 +99,7 @@ def excluir_lancamento_par(request, pk):
 def editar_lancamento(request, pk):
     lancamento = get_object_or_404(Lancamento, pk=pk)
     encerrado = (lancamento.competencia_ano, lancamento.competencia_mes) < (date.today().year, date.today().month)
+    return_url = _return_url(request, lancamento.competencia_ano, lancamento.competencia_mes)
 
     if request.method == "POST":
         form = LancamentoForm(request.POST, instance=lancamento)
@@ -111,7 +120,7 @@ def editar_lancamento(request, pk):
             if request.headers.get("HX-Request"):
                 messages.success(request, "Lancamento atualizado.")
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})
-            return redirect(f"/?ano={lancamento.competencia_ano}&mes={lancamento.competencia_mes}")
+            return redirect(return_url)
     else:
         form = LancamentoForm(instance=lancamento)
 
@@ -122,6 +131,7 @@ def editar_lancamento(request, pk):
             "form": form,
             "lancamento": lancamento,
             "encerrado": encerrado,
+            "return_url": return_url,
         },
     )
 
@@ -129,6 +139,7 @@ def editar_lancamento(request, pk):
 @require_http_methods(["GET", "POST"])
 def criar_compra_parcelada(request):
     ano, mes = _contexto_mes(request)
+    return_url = _return_url(request, ano, mes)
 
     if request.method == "POST":
         form = CompraParceladaForm(request.POST)
@@ -140,16 +151,17 @@ def criar_compra_parcelada(request):
             )
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204)
-            return redirect(f"/?ano={ano}&mes={mes}")
+            return redirect(return_url)
     else:
         form = CompraParceladaForm()
 
-    return render(request, "lancamentos/form_compra_parcelada.html", {"form": form})
+    return render(request, "lancamentos/form_compra_parcelada.html", {"form": form, "return_url": return_url})
 
 
 @require_http_methods(["GET", "POST"])
 def criar_transferencia(request):
     ano, mes = _contexto_mes(request)
+    return_url = _return_url(request, ano, mes)
 
     if request.method == "POST":
         form = TransferenciaForm(request.POST)
@@ -162,8 +174,8 @@ def criar_transferencia(request):
             )
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204)
-            return redirect(f"/?ano={ano}&mes={mes}")
+            return redirect(return_url)
     else:
         form = TransferenciaForm()
 
-    return render(request, "lancamentos/form_transferencia.html", {"form": form})
+    return render(request, "lancamentos/form_transferencia.html", {"form": form, "return_url": return_url})

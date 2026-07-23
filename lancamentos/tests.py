@@ -1,13 +1,15 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from urllib.parse import quote
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
 from contas.models import Conta
-from lancamentos.forms import LancamentoForm
+from lancamentos.forms import CompraParceladaForm, LancamentoForm
 from lancamentos.models import Lancamento
+from meses.services import criar_mes
 
 
 def _make_banco(nome="Banco", saldo=Decimal("1000.00")):
@@ -251,6 +253,23 @@ class CriarLancamentoViewTests(TestCase):
         lancamento = Lancamento.objects.get(descricao="Aluguel")
         self.assertEqual(lancamento.competencia_ano, hoje.year)
         self.assertEqual(lancamento.competencia_mes, hoje.month)
+
+    def test_criar_lancamento_valido_htmx_retorna_204(self):
+        hoje = date.today()
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Aluguel HTMX",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "50.00",
+                "conta": self.conta.pk,
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(Lancamento.objects.filter(descricao="Aluguel HTMX").exists())
 
     def test_criar_lancamento_invalido_reexibe_formulario_sem_erro_de_competencia(self):
         hoje = date.today()
@@ -710,3 +729,702 @@ class LancamentoDetalhesViewTests(TestCase):
         self.assertIn(resposta.status_code, (200, 204, 302))
         lanc.refresh_from_db()
         self.assertEqual(lanc.detalhes, "Detalhe editado pelo usuario")
+
+
+class FormActionsTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(nome="Banco FA", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("100.00"))
+
+    def test_criar_lancamento_exibe_cancelar(self):
+        hoje = date.today()
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}"
+        response = self.client.get(url)
+        self.assertContains(response, "Cancelar")
+
+    def test_editar_lancamento_exibe_cancelar(self):
+        hoje = date.today()
+        lanc = Lancamento.objects.create(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=hoje,
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=hoje.year,
+            competencia_mes=hoje.month,
+        )
+        response = self.client.get(reverse("lancamentos:editar", args=[lanc.pk]))
+        self.assertContains(response, "Cancelar")
+
+    def test_criar_compra_parcelada_exibe_cancelar(self):
+        url = reverse("lancamentos:compra_parcelada")
+        response = self.client.get(url)
+        self.assertContains(response, "Cancelar")
+
+    def test_criar_transferencia_exibe_cancelar(self):
+        url = reverse("lancamentos:transferencia")
+        response = self.client.get(url)
+        self.assertContains(response, "Cancelar")
+
+
+class ReturnUrlTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(nome="Banco RU", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("100.00"))
+
+    def test_criar_lancamento_redirect_para_return_url(self):
+        from urllib.parse import quote
+        hoje = date.today()
+        return_url = f"/?ano={hoje.year}&mes={hoje.month}&conta={self.conta.pk}"
+        encoded_return_url = quote(return_url, safe="")
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}&return_url={encoded_return_url}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Teste RU",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.conta.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(return_url, response.url)
+
+    def test_return_url_externa_ignorada(self):
+        hoje = date.today()
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}&return_url=https://evil.com"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Teste Ext",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.conta.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("evil.com", response.url)
+        self.assertIn(f"/?ano={hoje.year}&mes={hoje.month}", response.url)
+
+    def test_return_url_vazia_usa_fallback(self):
+        hoje = date.today()
+        url = f"{reverse('lancamentos:criar')}?ano={hoje.year}&mes={hoje.month}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Teste FB",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.conta.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"/?ano={hoje.year}&mes={hoje.month}", response.url)
+
+
+class DateInputRenderingTests(TestCase):
+    def setUp(self):
+        self.conta = Conta.objects.create(
+            nome="Banco DI", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("100.00")
+        )
+        self.cartao = Conta.objects.create(
+            nome="Cartao DI", tipo=Conta.Tipo.CARTAO, dia_vencimento=10
+        )
+        self.hoje = date.today()
+
+    def _criar_lancamento(self):
+        return Lancamento.objects.create(
+            descricao="Lanc DI",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=self.hoje,
+            valor=Decimal("10.00"),
+            conta=self.conta,
+            competencia_ano=self.hoje.year,
+            competencia_mes=self.hoje.month,
+        )
+
+    def test_criar_lancamento_usa_date_para_vencimento(self):
+        url = f"{reverse('lancamentos:criar')}?ano={self.hoje.year}&mes={self.hoje.month}"
+        response = self.client.get(url)
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data_vencimento"', content)
+
+    def test_editar_lancamento_usa_date_para_vencimento(self):
+        lanc = self._criar_lancamento()
+        response = self.client.get(reverse("lancamentos:editar", args=[lanc.pk]))
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data_vencimento"', content)
+
+    def test_compra_parcelada_usa_date_para_data_compra(self):
+        response = self.client.get(reverse("lancamentos:compra_parcelada"))
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data_compra"', content)
+
+    def test_transferencia_usa_date_para_data_vencimento(self):
+        response = self.client.get(reverse("lancamentos:transferencia"))
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data_vencimento"', content)
+
+    def test_popover_pagar_em_consolidada_usa_date_para_pagamento(self):
+        criar_mes(self.hoje.year, self.hoje.month)
+        self._criar_lancamento()
+        response = self.client.get(f"/?ano={self.hoje.year}&mes={self.hoje.month}")
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data_pagamento"', content)
+
+
+class ReturnUrlFlowTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(
+            nome="Banco RU3", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("1000.00")
+        )
+        self.cartao = Conta.objects.create(
+            nome="Cartao RU3", tipo=Conta.Tipo.CARTAO, dia_vencimento=10
+        )
+        self.destino = Conta.objects.create(
+            nome="Destino RU3", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00")
+        )
+        self.hoje = date.today()
+
+    def _criar_lancamento(self):
+        return Lancamento.objects.create(
+            descricao="Lanc RU3",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=self.hoje,
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.hoje.year,
+            competencia_mes=self.hoje.month,
+        )
+
+    def test_editar_lancamento_redirect_para_return_url(self):
+        lanc = self._criar_lancamento()
+        return_url = f"/?ano={self.hoje.year}&mes={self.hoje.month}&conta={self.banco.pk}"
+        encoded = quote(return_url, safe="")
+        url = f"{reverse('lancamentos:editar', args=[lanc.pk])}?return_url={encoded}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Editado RU3",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": self.hoje.isoformat(),
+                "valor": "10.00",
+                "conta": self.banco.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(return_url, response.url)
+
+    def test_editar_lancamento_cancel_link_rejeita_url_externa(self):
+        lanc = self._criar_lancamento()
+        encoded = quote("https://evil.com", safe="")
+        url = f"{reverse('lancamentos:editar', args=[lanc.pk])}?return_url={encoded}"
+        response = self.client.get(url)
+        content = response.content.decode()
+        self.assertNotIn("evil.com", content)
+        self.assertIn(f"href=\"/?ano={self.hoje.year}&amp;mes={self.hoje.month}\"", content)
+
+    def test_compra_parcelada_redirect_para_return_url(self):
+        return_url = f"/?ano={self.hoje.year}&mes={self.hoje.month}"
+        encoded = quote(return_url, safe="")
+        url = f"{reverse('lancamentos:compra_parcelada')}?return_url={encoded}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Compra RU3",
+                "valor_total": "600.00",
+                "total_parcelas": "3",
+                "parcelas_pagas": "0",
+                "conta": self.cartao.pk,
+                "data_compra": self.hoje.isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(return_url, response.url)
+
+    def test_compra_parcelada_cancel_link_rejeita_url_externa(self):
+        encoded = quote("https://evil.com", safe="")
+        url = f"{reverse('lancamentos:compra_parcelada')}?return_url={encoded}"
+        response = self.client.get(url)
+        content = response.content.decode()
+        self.assertNotIn("evil.com", content)
+        self.assertIn(f"href=\"/?ano={self.hoje.year}&amp;mes={self.hoje.month}\"", content)
+
+    def test_transferencia_redirect_para_return_url(self):
+        return_url = f"/?ano={self.hoje.year}&mes={self.hoje.month}&conta={self.banco.pk}"
+        encoded = quote(return_url, safe="")
+        url = f"{reverse('lancamentos:transferencia')}?return_url={encoded}"
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Transf RU3",
+                "conta_origem": self.banco.pk,
+                "conta_destino": self.destino.pk,
+                "valor": "100.00",
+                "data_vencimento": self.hoje.isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(return_url, response.url)
+
+    def test_transferencia_cancel_link_rejeita_url_externa(self):
+        encoded = quote("https://evil.com", safe="")
+        url = f"{reverse('lancamentos:transferencia')}?return_url={encoded}"
+        response = self.client.get(url)
+        content = response.content.decode()
+        self.assertNotIn("evil.com", content)
+        self.assertIn(f"href=\"/?ano={self.hoje.year}&amp;mes={self.hoje.month}\"", content)
+
+
+class LancamentoFormCleanTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(nome="Banco LC", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        self.invest = Conta.objects.create(nome="Invest LC", tipo=Conta.Tipo.INVESTIMENTO, saldo_atual=Decimal("0.00"))
+        self.hoje = date.today()
+
+    def _form(self, tipo, conta=None, instance_kwargs=None):
+        conta = conta or self.banco
+        instancia = Lancamento(competencia_ano=self.hoje.year, competencia_mes=self.hoje.month, **(instance_kwargs or {}))
+        form = LancamentoForm(
+            data={
+                "descricao": "Teste",
+                "tipo": tipo,
+                "data_vencimento": self.hoje.isoformat(),
+                "valor": "10.00",
+                "conta": conta.pk,
+            },
+            instance=instancia,
+        )
+        # Restaura escolhas para permitir validacao de tipos bloqueados no cadastro manual
+        form.fields["tipo"].choices = Lancamento.Tipo.choices
+        return form
+
+    def test_conciliacao_rejeitada_no_cadastro_manual(self):
+        form = self._form(Lancamento.Tipo.CONCILIACAO)
+        self.assertFalse(form.is_valid())
+        self.assertIn("tipo", form.errors)
+
+    def test_parcela_cartao_rejeitada_no_cadastro_manual(self):
+        cartao = Conta.objects.create(nome="Cartao LC", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        form = self._form(Lancamento.Tipo.PARCELA_CARTAO, conta=cartao)
+        self.assertFalse(form.is_valid())
+        self.assertIn("tipo", form.errors)
+
+    def test_transferencia_rejeitada_no_cadastro_manual(self):
+        form = self._form(Lancamento.Tipo.TRANSFERENCIA_ENVIADA)
+        self.assertFalse(form.is_valid())
+        self.assertIn("tipo", form.errors)
+
+    def test_form_rejeita_aporte_em_conta_nao_investimento(self):
+        form = self._form(Lancamento.Tipo.APORTE, conta=self.banco)
+        self.assertFalse(form.is_valid())
+        # Linha 70: tipo investimento com conta nao investimento
+        self.assertTrue("conta" in form.errors or "tipo" in form.errors)
+
+    def test_form_rejeita_gasto_em_conta_investimento(self):
+        form = self._form(Lancamento.Tipo.GASTO_VARIAVEL, conta=self.invest)
+        self.assertFalse(form.is_valid())
+        # Linha 74: conta investimento com tipo nao investimento
+        self.assertTrue("conta" in form.errors or "tipo" in form.errors)
+
+
+class CompraParceladaFormCleanTests(TestCase):
+    def test_parcelas_pagas_maior_que_total(self):
+        cartao = Conta.objects.create(nome="Cartao CP", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        form = CompraParceladaForm(
+            data={
+                "descricao": "Compra",
+                "valor_total": "100.00",
+                "total_parcelas": "3",
+                "parcelas_pagas": "5",
+                "conta": cartao.pk,
+                "data_compra": date.today().isoformat(),
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("parcelas_pagas", form.errors)
+
+    def test_parcelas_pagas_igual_total(self):
+        cartao = Conta.objects.create(nome="Cartao CP2", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        form = CompraParceladaForm(
+            data={
+                "descricao": "Compra",
+                "valor_total": "100.00",
+                "total_parcelas": "3",
+                "parcelas_pagas": "3",
+                "conta": cartao.pk,
+                "data_compra": date.today().isoformat(),
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("parcelas_pagas", form.errors)
+
+
+class LancamentoQuerySetAndModelTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(nome="Banco QM", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        self.ano, self.mes = date.today().year, date.today().month
+        criar_mes(self.ano, self.mes)
+
+    def _criar(self, tipo, valor, dia=10, data_pagamento=None, descricao=None, **extra):
+        descricao = descricao or f"L {tipo}"
+        return Lancamento.objects.create(
+            descricao=descricao,
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, dia),
+            data_pagamento=data_pagamento,
+            valor=valor,
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            **extra,
+        )
+
+    def test_queryset_pagos_previstos_pendentes(self):
+        hoje = date.today()
+        pago = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), data_pagamento=hoje)
+        pendente = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), dia=1)
+        previsto = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), dia=28)
+
+        self.assertIn(pago, Lancamento.objects.pagos())
+        self.assertIn(pendente, Lancamento.objects.pendentes())
+        self.assertIn(previsto, Lancamento.objects.previstos())
+
+    def test_com_status_invalido_levanta_erro(self):
+        with self.assertRaises(ValueError):
+            Lancamento.objects.com_status("INVALIDO")
+
+    def test_com_status_pago_previsto_pendente(self):
+        hoje = date.today()
+        pago = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), data_pagamento=hoje)
+        pendente = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), dia=1)
+        previsto = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), dia=28)
+
+        self.assertIn(pago, Lancamento.objects.com_status("pago"))
+        self.assertIn(previsto, Lancamento.objects.com_status("PREVISTO"))
+        self.assertIn(pendente, Lancamento.objects.com_status(Lancamento.Status.PENDENTE))
+
+    def test_com_status_in_vazio_retorna_mesmo_queryset(self):
+        qs = Lancamento.objects.com_status_in([])
+        self.assertEqual(qs.count(), 0)
+
+    def test_com_status_in_invalido_levanta_erro(self):
+        with self.assertRaises(ValueError):
+            Lancamento.objects.com_status_in(["INVALIDO"])
+
+    def test_str(self):
+        lanc = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"))
+        self.assertEqual(str(lanc), f"L GASTO_FIXO ({self.mes:02d}/{self.ano})")
+
+    def test_direcao_conciliacao_positiva_e_negativa(self):
+        entrada = Lancamento(tipo=Lancamento.Tipo.CONCILIACAO, valor=Decimal("10.00"))
+        saida = Lancamento(tipo=Lancamento.Tipo.CONCILIACAO, valor=Decimal("-10.00"))
+        self.assertEqual(entrada.direcao, "ENTRADA")
+        self.assertEqual(saida.direcao, "SAIDA")
+
+    def test_direcao_tipo_invalido(self):
+        lanc = Lancamento(tipo="INVALIDO", valor=Decimal("10.00"))
+        with self.assertRaises(ValueError):
+            lanc.direcao
+
+    def test_clean_competencia_mes_invalida(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=13,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("competencia_mes", ctx.exception.message_dict)
+
+    def test_clean_conta_inexistente(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta_id=99999,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("conta", ctx.exception.message_dict)
+
+    def test_clean_parcela_cartao_sem_total_parcelas(self):
+        cartao = Conta.objects.create(nome="Cartao QM", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        lanc = Lancamento(
+            descricao="Parcela",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=cartao,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("total_parcelas", ctx.exception.message_dict)
+
+    def test_clean_parcela_cartao_exige_conta_cartao(self):
+        lanc = Lancamento(
+            descricao="Parcela",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            total_parcelas=3,
+            parcela_atual=1,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("conta", ctx.exception.message_dict)
+
+    def test_clean_parcela_atual_maior_que_total(self):
+        cartao = Conta.objects.create(nome="Cartao QM2", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        lanc = Lancamento(
+            descricao="Parcela",
+            tipo=Lancamento.Tipo.PARCELA_CARTAO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=cartao,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            total_parcelas=3,
+            parcela_atual=5,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("parcela_atual", ctx.exception.message_dict)
+
+    def test_clean_campos_parcela_em_tipo_nao_parcela(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            total_parcelas=3,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("total_parcelas", ctx.exception.message_dict)
+
+    def test_clean_valor_zero(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("0.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("valor", ctx.exception.message_dict)
+
+    def test_clean_valor_negativo_para_nao_conciliacao(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("-10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("valor", ctx.exception.message_dict)
+
+    def test_clean_lancamento_vinculado_a_si_mesmo(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            pk=1,
+            lancamento_vinculado_id=1,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("lancamento_vinculado", ctx.exception.message_dict)
+
+    def test_clean_lancamento_vinculado_inexistente(self):
+        lanc = Lancamento(
+            descricao="Teste",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date.today(),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            lancamento_vinculado_id=99999,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            lanc.full_clean()
+        self.assertIn("lancamento_vinculado", ctx.exception.message_dict)
+
+    def test_save_limpa_vinculo_antigo_do_parceiro(self):
+        a = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), descricao="A")
+        b = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), descricao="B")
+        c = self._criar(Lancamento.Tipo.GASTO_FIXO, Decimal("10.00"), descricao="C")
+
+        b.lancamento_vinculado = c
+        b.save()
+
+        a.lancamento_vinculado = b
+        a.save()
+
+        c.refresh_from_db()
+        self.assertIsNone(c.lancamento_vinculado_id)
+
+
+class LancamentoViewEdgeTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(nome="Banco VE", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        self.hoje = date.today()
+        self.ano, self.mes = self.hoje.year, self.hoje.month
+        criar_mes(self.ano, self.mes)
+
+    def _lancar(self, descricao="Lanc", tipo=Lancamento.Tipo.GASTO_FIXO, dia=10, **extra):
+        return Lancamento.objects.create(
+            descricao=descricao,
+            tipo=tipo,
+            data_vencimento=date(self.ano, self.mes, dia),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            **extra,
+        )
+
+    def test_marcar_pago_invalido_retorna_400(self):
+        lanc = self._lancar()
+        url = reverse("lancamentos:marcar_pago", args=[lanc.pk])
+        response = self.client.post(url, {"data_pagamento": ""})
+        self.assertEqual(response.status_code, 400)
+
+    def test_marcar_pago_invalido_retorna_204_htmx(self):
+        lanc = self._lancar()
+        url = reverse("lancamentos:marcar_pago", args=[lanc.pk])
+        response = self.client.post(url, {"data_pagamento": ""}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 204)
+
+    def test_transferir_pendente_inexistente_htmx(self):
+        url = reverse("visualizacao:transferir_pendente", args=[99999])
+        response = self.client.post(url, {"ano": str(self.ano), "mes": str(self.mes)}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 204)
+
+    def test_manter_pendente_inexistente_htmx(self):
+        url = reverse("visualizacao:manter_pendente", args=[99999])
+        response = self.client.post(url, {}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 204)
+
+    def test_ajustar_saldo_campo_ausente_htmx(self):
+        url = reverse("visualizacao:ajustar_saldo", args=[self.banco.pk])
+        response = self.client.post(url, {"ano": str(self.ano), "mes": str(self.mes)}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 204)
+
+    def test_editar_mes_encerrado_rejeita_sem_confirmacao(self):
+        lanc = Lancamento.objects.create(
+            descricao="Antigo",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date(self.ano, self.mes, 10),
+            valor=Decimal("10.00"),
+            conta=self.banco,
+            competencia_ano=self.ano - 1,
+            competencia_mes=self.mes,
+        )
+        url = reverse("lancamentos:editar", args=[lanc.pk])
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Editado",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": "2025-01-10",
+                "valor": "10.00",
+                "conta": self.banco.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_editar_lancamento_htmx(self):
+        lanc = self._lancar()
+        url = reverse("lancamentos:editar", args=[lanc.pk])
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Editado HTMX",
+                "tipo": Lancamento.Tipo.GASTO_FIXO,
+                "data_vencimento": self.hoje.isoformat(),
+                "valor": "20.00",
+                "conta": self.banco.pk,
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_excluir_lancamento_par_trata_parceiro_deletado(self):
+        from unittest.mock import patch
+
+        a = self._lancar(descricao="A")
+        b = self._lancar(descricao="B")
+        a.lancamento_vinculado = b
+        a.save()
+
+        url = reverse("lancamentos:excluir_par", args=[a.pk])
+        with patch.object(Lancamento, "refresh_from_db", side_effect=Lancamento.DoesNotExist):
+            response = self.client.post(url)
+        self.assertEqual(response.status_code, 204)
+
+    def test_criar_compra_parcelada_htmx(self):
+        cartao = Conta.objects.create(nome="Cartao VE", tipo=Conta.Tipo.CARTAO, dia_vencimento=10)
+        url = reverse("lancamentos:compra_parcelada")
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Compra HTMX",
+                "valor_total": "300.00",
+                "total_parcelas": "3",
+                "parcelas_pagas": "0",
+                "conta": cartao.pk,
+                "data_compra": self.hoje.isoformat(),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_criar_transferencia_htmx(self):
+        destino = Conta.objects.create(nome="Destino VE", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("0.00"))
+        url = reverse("lancamentos:transferencia")
+        response = self.client.post(
+            url,
+            {
+                "descricao": "Transf HTMX",
+                "conta_origem": self.banco.pk,
+                "conta_destino": destino.pk,
+                "valor": "50.00",
+                "data_vencimento": self.hoje.isoformat(),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 204)

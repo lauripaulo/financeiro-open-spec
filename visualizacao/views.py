@@ -58,8 +58,26 @@ def _erro(request, mensagem):
     return HttpResponseBadRequest(mensagem)
 
 
+def _parse_competencia_param(request, param):
+    """Parse a competência mensal (YYYY-MM) from a named GET param, returning (ano, mes) or None."""
+    comp = request.GET.get(param, "")
+    if not comp:
+        return None
+    try:
+        ano, mes = comp.split("-")
+        ano, mes = int(ano), int(mes)
+        if 1 <= mes <= 12 and 2000 <= ano <= 2200:
+            return ano, mes
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
 def _filtros_mes(request):
     hoje = date.today()
+    comp = _parse_competencia_param(request, "competencia")
+    if comp:
+        return comp
     try:
         ano = int(request.POST.get("ano") or request.GET.get("ano", hoje.year))
         mes = int(request.POST.get("mes") or request.GET.get("mes", hoje.month))
@@ -116,6 +134,7 @@ def visao_consolidada(request):
         {
             "ano": ano,
             "mes": mes,
+            "competencia": f"{ano}-{mes:02d}",
             "ano_ant": ano_ant,
             "mes_ant": mes_ant,
             "ano_prox": ano_prox,
@@ -133,6 +152,7 @@ def visao_consolidada(request):
             "pendentes_mes_anterior": pendentes_mes_anterior(ano, mes),
             "alertas_limite": resumo.alertas_limite,
             "aviso_limite_meses": aviso_limite,
+            "current_url": request.get_full_path(),
         },
     )
 
@@ -169,10 +189,20 @@ def visao_patrimonio(request):
 @require_http_methods(["GET"])
 def comparativo_meses(request):
     hoje = date.today()
-    ano_a = int(request.GET.get("ano_a", hoje.year))
-    mes_a = int(request.GET.get("mes_a", hoje.month))
-    ano_b = int(request.GET.get("ano_b", hoje.year if hoje.month > 1 else hoje.year - 1))
-    mes_b = int(request.GET.get("mes_b", hoje.month - 1 or 12))
+    comp_a = _parse_competencia_param(request, "competencia_a")
+    comp_b = _parse_competencia_param(request, "competencia_b")
+
+    if comp_a:
+        ano_a, mes_a = comp_a
+    else:
+        ano_a = int(request.GET.get("ano_a", hoje.year))
+        mes_a = int(request.GET.get("mes_a", hoje.month))
+
+    if comp_b:
+        ano_b, mes_b = comp_b
+    else:
+        ano_b = int(request.GET.get("ano_b", hoje.year if hoje.month > 1 else hoje.year - 1))
+        mes_b = int(request.GET.get("mes_b", hoje.month - 1 or 12))
 
     contas = Conta.objects.filter(tipo__in=[Conta.Tipo.BANCO, Conta.Tipo.CARTAO]).order_by("nome")
     linhas = []
@@ -196,6 +226,8 @@ def comparativo_meses(request):
             "mes_a": mes_a,
             "ano_b": ano_b,
             "mes_b": mes_b,
+            "competencia_a": f"{ano_a}-{mes_a:02d}",
+            "competencia_b": f"{ano_b}-{mes_b:02d}",
             "linhas": linhas,
         },
     )

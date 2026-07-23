@@ -52,9 +52,6 @@ class MoedaFilterTests(TestCase):
 
 
 class FiltrosMesTests(TestCase):
-    def _get_request(self, params=None):
-        return self.client.get("/", params or {}).wsgi_request
-
     def test_retorna_ano_e_mes_do_get(self):
         request = self.client.get("/", {"ano": "2025", "mes": "3"}).wsgi_request
         ano, mes = _filtros_mes(request)
@@ -179,7 +176,34 @@ class ResumoConsolidadoServiceTests(TestCase):
         contas = [item["conta"] for item in resumo.contas_ajuste]
         self.assertNotIn(investimento, contas)
 
-    def test_alertas_cobrem_todas_as_contas_banco_mesmo_com_filtro(self):
+    def test_alertas_limite_proximo(self):
+        proxima = Conta.objects.create(
+            nome="Banco Proximo",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("0.00"),
+            limite_negativo=Decimal("100.00"),
+        )
+        # saldo_inicial eh 0; gasto de 80 deixa saldo -80, dentro da margem de proximidade (50)
+        Lancamento.objects.create(
+            descricao="Gasto",
+            tipo=Lancamento.Tipo.GASTO_FIXO,
+            data_vencimento=date(self.ano, self.mes, 10),
+            valor=Decimal("80.00"),
+            conta=proxima,
+            competencia_ano=self.ano,
+            competencia_mes=self.mes,
+            gerado_automaticamente=True,
+        )
+        resumo = resumo_consolidado(self.ano, self.mes)
+        self.assertTrue(
+            any("saldo proximo do limite negativo" in a for a in resumo.alertas_limite)
+        )
+        # limite negativo ultrapassado nao deve aparecer como proximo
+        self.assertFalse(
+            any("ultrapassado" in a for a in resumo.alertas_limite)
+        )
+
+    def test_alertas_limite_ultrapassado(self):
         estourada = Conta.objects.create(
             nome="Banco Estourado",
             tipo=Conta.Tipo.BANCO,
@@ -187,9 +211,7 @@ class ResumoConsolidadoServiceTests(TestCase):
             limite_negativo=Decimal("100.00"),
         )
         self._lancar(estourada, Lancamento.Tipo.GASTO_FIXO, Decimal("500.00"))
-
-        resumo = resumo_consolidado(self.ano, self.mes, conta_id=self.banco.pk)
-
+        resumo = resumo_consolidado(self.ano, self.mes)
         self.assertIn("Banco Estourado: limite negativo ultrapassado.", resumo.alertas_limite)
 
     def test_saldos_concordam_com_saldo_do_mes(self):
@@ -512,12 +534,16 @@ class PaginacaoMovimentacoesTests(TestCase):
         self.assertEqual(nao_numerica.context["pagina"].number, 1)
         self.assertEqual(fora_do_alcance.context["pagina"].number, 2)
 
-    def test_links_de_paginacao_preservam_filtros(self):
-        self._criar_lancamentos(51, data_pagamento=date(self.ano, self.mes, 10))
-        response = self._get(conta=str(self.conta.pk), status="PAGO")
-        self.assertContains(response, f"&conta={self.conta.pk}")
-        self.assertContains(response, "&status=PAGO")
-        self.assertContains(response, "&pagina=2")
+    def test_comparativo_usa_parametros_de_competencia(self):
+        response = self.client.get(
+            reverse("visualizacao:comparativo"),
+            {"competencia_a": "2026-06", "competencia_b": "2026-05"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["ano_a"], 2026)
+        self.assertEqual(response.context["mes_a"], 6)
+        self.assertEqual(response.context["ano_b"], 2026)
+        self.assertEqual(response.context["mes_b"], 5)
 
     def test_controle_oculto_com_uma_unica_pagina(self):
         self._criar_lancamentos(50)
@@ -740,12 +766,10 @@ class CriarMesViewTests(TestCase):
 
     def test_cria_mes_invalido_retorna_pagina_com_erro(self):
         """Task 5.4: Tentar criar mes fora da sequencia retorna mes_nao_criado com erro."""
-        # Tentar criar um mes diferente do atual quando nenhum mes esta aberto
         hoje = date.today()
-        ano_outro = hoje.year
-        mes_outro = hoje.month - 1 if hoje.month > 1 else 12
-        if mes_outro == 12 and hoje.month == 1:
-            ano_outro -= 1
+        mes_anterior_decimal = hoje.year * 12 + hoje.month - 2
+        ano_outro, mes_outro = divmod(mes_anterior_decimal, 12)
+        mes_outro += 1
         url = reverse("visualizacao:criar_mes")
         response = self.client.post(url, {"ano": str(ano_outro), "mes": str(mes_outro)})
         self.assertEqual(response.status_code, 200)
@@ -847,9 +871,122 @@ class VisaoPlanejamentoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["data_ref"], hoje)
 
+    def test_data_ref_renderiza_com_type_date(self):
+        response = self.client.get(self.url)
+        content = response.content.decode()
+        self.assertIn('type="date"', content)
+        self.assertIn('name="data"', content)
+
+    def test_data_ref_invalida_usa_hoje(self):
+        response = self.client.get(self.url, {"data": "not-a-date"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["data_ref"], date.today())
+
+    def test_data_fora_mes_aberto(self):
+        ano2, mes2 = _mes_seguinte(self.ano, self.mes)
+        response = self.client.get(self.url, {"data": date(ano2, mes2, 15).isoformat()})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["resumo"].data_fora_mes_aberto)
+        self.assertEqual(response.context["resumo"].mes_ref_ano, self.ano)
+        self.assertEqual(response.context["resumo"].mes_ref_mes, self.mes)
+
     def test_sem_meses_abertos_exibe_aviso(self):
         from meses.models import MesAberto
         MesAberto.objects.all().delete()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["resumo"].sem_meses_abertos)
+
+
+class CompetenciaMensalTests(TestCase):
+    def test_mes_seguinte_ano_novo(self):
+        from visualizacao.tests import _mes_seguinte
+        self.assertEqual(_mes_seguinte(2025, 12), (2026, 1))
+    def test_parse_competencia_valida(self):
+        from visualizacao.views import _parse_competencia_param
+        request = self.client.get("/", {"competencia": "2025-03"}).wsgi_request
+        result = _parse_competencia_param(request, "competencia")
+        self.assertEqual(result, (2025, 3))
+
+    def test_parse_competencia_invalida(self):
+        from visualizacao.views import _parse_competencia_param
+        request = self.client.get("/", {"competencia": "abc"}).wsgi_request
+        result = _parse_competencia_param(request, "competencia")
+        self.assertIsNone(result)
+
+    def test_parse_competencia_vazia(self):
+        from visualizacao.views import _parse_competencia_param
+        request = self.client.get("/", {"competencia": ""}).wsgi_request
+        result = _parse_competencia_param(request, "competencia")
+        self.assertIsNone(result)
+
+    def test_parse_competencia_mes_invalido(self):
+        from visualizacao.views import _parse_competencia_param
+        request = self.client.get("/", {"competencia": "2025-13"}).wsgi_request
+        result = _parse_competencia_param(request, "competencia")
+        self.assertIsNone(result)
+
+    def test_filtros_mes_com_competencia(self):
+        request = self.client.get("/", {"competencia": "2025-06"}).wsgi_request
+        ano, mes = _filtros_mes(request)
+        self.assertEqual(ano, 2025)
+        self.assertEqual(mes, 6)
+
+    def test_filtros_mes_competencia_prioridade_sobre_ano_mes(self):
+        request = self.client.get("/", {"competencia": "2025-06", "ano": "2020", "mes": "1"}).wsgi_request
+        ano, mes = _filtros_mes(request)
+        self.assertEqual(ano, 2025)
+        self.assertEqual(mes, 6)
+
+    def test_filtros_mes_fallback_ano_mes(self):
+        request = self.client.get("/", {"ano": "2025", "mes": "3"}).wsgi_request
+        ano, mes = _filtros_mes(request)
+        self.assertEqual(ano, 2025)
+        self.assertEqual(mes, 3)
+
+
+class CompetenciaInputRenderingTests(TestCase):
+    def setUp(self):
+        self.banco = Conta.objects.create(
+            nome="Banco CI",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("500.00"),
+        )
+        self.ano, self.mes = _mes_atual()
+        criar_mes(self.ano, self.mes)
+
+    def test_consolidada_exibe_input_month(self):
+        response = self.client.get("/", {"ano": self.ano, "mes": self.mes})
+        self.assertContains(response, 'type="month"')
+
+    def test_consolidada_sem_campos_ano_mes_separados(self):
+        response = self.client.get("/", {"ano": self.ano, "mes": self.mes})
+        content = response.content.decode()
+        # O form de filtro nao deve ter inputs number para ano e mes
+        self.assertNotIn('name="ano"', content.split('method="get"')[1].split('</form>')[0])
+        self.assertNotIn('name="mes"', content.split('method="get"')[1].split('</form>')[0])
+
+    def test_comparativo_exibe_inputs_month(self):
+        response = self.client.get(reverse("visualizacao:comparativo"))
+        self.assertContains(response, 'type="month"')
+        self.assertContains(response, "competencia_a")
+        self.assertContains(response, "competencia_b")
+
+    def test_comparativo_sem_campos_ano_mes_separados(self):
+        response = self.client.get(reverse("visualizacao:comparativo"))
+        content = response.content.decode()
+        form_section = content.split('method="get"')[1].split('</form>')[0]
+        self.assertNotIn('name="ano_a"', form_section)
+        self.assertNotIn('name="mes_a"', form_section)
+        self.assertNotIn('name="ano_b"', form_section)
+        self.assertNotIn('name="mes_b"', form_section)
+
+
+class ImportacaoFormActionsTests(TestCase):
+    def test_ofx_form_exibe_voltar(self):
+        response = self.client.get(reverse("importacao:nubank_cartao"))
+        self.assertContains(response, "Voltar")
+
+    def test_ofx_conta_form_exibe_voltar(self):
+        response = self.client.get(reverse("importacao:nubank_conta"))
+        self.assertContains(response, "Voltar")

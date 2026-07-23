@@ -33,7 +33,7 @@
             <span>Confirmo a edicao de mes encerrado</span>
         </label>
         {% endif %}
-        <button type="submit" class="m3-button--filled">Salvar alteracoes</button>
+        {% include "_partials/form_actions.html" with primary_label="Salvar alteracoes" secondary_label="Cancelar" secondary_url=return_url %}
     </form>
 </section>
 </div>

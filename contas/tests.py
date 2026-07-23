@@ -1,4 +1,6 @@
 from decimal import Decimal
+from importlib import import_module
+from unittest.mock import MagicMock
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -6,6 +8,7 @@ from django.urls import reverse
 
 from contas.forms import ContaForm
 from contas.models import Conta
+from contas.services import validar_limite_negativo
 from contas.widgets import MoedaWidget
 from lancamentos.models import Lancamento
 
@@ -163,3 +166,114 @@ class ContaViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Conta.objects.filter(pk=conta.pk).exists())
         self.assertContains(response, "nao pode ser excluida")
+
+
+class LimiteNegativoValidationTests(TestCase):
+    def test_limite_negativo_negativo_rejeitado(self):
+        mensagem = validar_limite_negativo(Decimal("-500.00"))
+        self.assertIsNotNone(mensagem)
+        self.assertIn("valor positivo", mensagem)
+
+    def test_limite_negativo_positivo_aceito(self):
+        mensagem = validar_limite_negativo(Decimal("2000.00"))
+        self.assertIsNone(mensagem)
+
+    def test_limite_negativo_none_aceito(self):
+        mensagem = validar_limite_negativo(None)
+        self.assertIsNone(mensagem)
+
+    def test_form_exibe_help_text_positivo(self):
+        response = self.client.get(reverse("contas:criar"))
+        self.assertContains(response, "valor positivo")
+
+    def test_form_rejeita_limite_negativo_negativo(self):
+        url = reverse("contas:criar")
+        response = self.client.post(
+            url,
+            {
+                "nome": "Banco Limite Neg",
+                "tipo": Conta.Tipo.BANCO,
+                "saldo_atual": "100.00",
+                "limite_negativo": "-300.00",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("limite_negativo", response.context["form"].errors)
+
+    def test_criar_conta_form_exibe_cancelar(self):
+        response = self.client.get(reverse("contas:criar"))
+        self.assertContains(response, "Cancelar")
+
+    def test_editar_conta_form_exibe_cancelar(self):
+        conta = Conta.objects.create(nome="Banco Cancel", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("10.00"))
+        response = self.client.get(reverse("contas:editar", args=[conta.pk]))
+        self.assertContains(response, "Cancelar")
+
+
+class ContaModelCleanEdgeTests(TestCase):
+    def _assert_erro(self, conta, campo):
+        with self.assertRaises(ValidationError) as ctx:
+            conta.full_clean()
+        self.assertIn(campo, ctx.exception.message_dict)
+
+    def test_cartao_sem_dia_vencimento(self):
+        conta = Conta(nome="Cartao", tipo=Conta.Tipo.CARTAO)
+        self._assert_erro(conta, "dia_vencimento")
+
+    def test_cartao_com_saldo_atual(self):
+        conta = Conta(nome="Cartao", tipo=Conta.Tipo.CARTAO, dia_vencimento=10, saldo_atual=Decimal("1.00"))
+        self._assert_erro(conta, "saldo_atual")
+
+    def test_cartao_com_limite_negativo(self):
+        conta = Conta(nome="Cartao", tipo=Conta.Tipo.CARTAO, dia_vencimento=10, limite_negativo=Decimal("1.00"))
+        self._assert_erro(conta, "limite_negativo")
+
+    def test_banco_com_dia_vencimento(self):
+        conta = Conta(nome="Banco", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("1.00"), dia_vencimento=10)
+        self._assert_erro(conta, "dia_vencimento")
+
+    def test_investimento_com_dia_vencimento(self):
+        conta = Conta(nome="Inv", tipo=Conta.Tipo.INVESTIMENTO, saldo_atual=Decimal("1.00"), dia_vencimento=10)
+        self._assert_erro(conta, "dia_vencimento")
+
+    def test_investimento_com_limite_negativo(self):
+        conta = Conta(nome="Inv", tipo=Conta.Tipo.INVESTIMENTO, saldo_atual=Decimal("1.00"), limite_negativo=Decimal("1.00"))
+        self._assert_erro(conta, "limite_negativo")
+
+    def test_dia_vencimento_fora_do_intervalo(self):
+        conta = Conta(nome="Cartao", tipo=Conta.Tipo.CARTAO, dia_vencimento=32)
+        self._assert_erro(conta, "dia_vencimento")
+
+    def test_saldo_atual_com_mais_de_duas_casas_decimais(self):
+        conta = Conta(nome="Banco", tipo=Conta.Tipo.BANCO, saldo_atual=Decimal("1.001"))
+        self._assert_erro(conta, "saldo_atual")
+
+
+class MoedaWidgetEdgeTests(TestCase):
+    def test_inicializa_com_atributos_customizados(self):
+        widget = MoedaWidget(attrs={"placeholder": "R$ 0,00"})
+        html = widget.render("valor", None)
+        self.assertIn('placeholder="R$ 0,00"', html)
+
+    def test_format_value_preserva_valor_invalido(self):
+        widget = MoedaWidget()
+        valor = object()
+        self.assertEqual(widget.format_value(valor), valor)
+
+
+class ContaMigrationTests(TestCase):
+    def test_flip_negative_to_positive(self):
+        conta = Conta.objects.create(
+            nome="Banco Neg",
+            tipo=Conta.Tipo.BANCO,
+            saldo_atual=Decimal("0.00"),
+            limite_negativo=Decimal("-500.00"),
+        )
+
+        apps = MagicMock()
+        apps.get_model.return_value = Conta
+
+        modulo = import_module("contas.migrations.0002_alter_conta_limite_negativo")
+        modulo.flip_negative_to_positive(apps, None)
+        conta.refresh_from_db()
+        self.assertEqual(conta.limite_negativo, Decimal("500.00"))

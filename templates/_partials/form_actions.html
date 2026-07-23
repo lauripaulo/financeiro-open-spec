@@ -1,0 +1,6 @@
+<div class="m3-form-actions">
+    <button type="submit" class="m3-button--filled">{{ primary_label }}</button>
+    {% if secondary_url %}
+    <a href="{{ secondary_url }}" class="m3-button--outlined">{{ secondary_label|default:"Cancelar" }}</a>
+    {% endif %}
+</div>

@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from contas.forms import ContaForm
@@ -21,7 +22,7 @@ def criar_conta(request):
     else:
         form = ContaForm()
 
-    return render(request, "contas/form.html", {"form": form})
+    return render(request, "contas/form.html", {"form": form, "cancel_url": reverse("contas:listar")})
 
 
 @require_http_methods(["GET", "POST"])
@@ -36,7 +37,7 @@ def editar_conta(request, pk):
     else:
         form = ContaForm(instance=conta)
 
-    return render(request, "contas/form.html", {"form": form, "conta": conta})
+    return render(request, "contas/form.html", {"form": form, "conta": conta, "cancel_url": reverse("contas:listar")})
 
 
 @require_http_methods(["POST"])

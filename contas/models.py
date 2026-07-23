@@ -19,7 +19,7 @@ class Conta(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Limite negativo de referencia para alerta.",
+        help_text="Informe como valor positivo (ex: 2000,00 para limite de -2000,00).",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
 
